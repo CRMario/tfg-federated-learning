@@ -25,10 +25,9 @@ def load_images(data_path):
 
     Returns
     -------
-    images : array[Image]
-        An array containing the loaded images from the directories.    
-    class : array[String]    
-        An array containing the class of the image. 
+    result: Dict[str,List[Image]]
+        A dictionary mapping each class label to a list of the images that belong
+        to the class.
     """
     path = Path(data_path)
 
@@ -38,20 +37,21 @@ def load_images(data_path):
     if not path.is_dir():
         raise NotADirectoryError(f"Data path is not a directory: {path}")
     
-    images = []
-    classes = []
+    result = {}
     for image_class in Path(data_path).iterdir():
+
+        # Create a dictionary of each of the labels
+        result[image_class.name] = []
         
         if not image_class.is_dir():
             continue
 
         for image_path in image_class.iterdir():
 
-            if not image_path.suffix.lower not in EXTENSIONS:
+            if image_path.suffix.lower() not in EXTENSIONS:
                 continue
 
             img = Image.open(image_path).convert("RGB")
-            images.append(img)
-            classes.append(image_class.name)
+            result[image_class.name].append(img)
 
-    return images, classes
+    return result
