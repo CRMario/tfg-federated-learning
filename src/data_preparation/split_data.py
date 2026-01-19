@@ -19,9 +19,9 @@ def split_data_by_hospital(images,hospitals,seed=42):
         
     Returns
     -------
-    data_splits: Dict[str,List[Tuple[Image,str]]]
-        A dictionary mapping each hospital to a list containing tuples
-        of images alongside their given label.
+    data_splits: dict[str,List[dict[str,str]]]
+        A dictionary mapping each hospital to a list containing a dictionary
+        with the images paths alongside their given label.
     """
 
     rand.seed(seed)
@@ -36,6 +36,9 @@ def split_data_by_hospital(images,hospitals,seed=42):
         rand.shuffle(imgs)
         for i, img in enumerate(imgs):
             assigned_hospital = hospitals[i % n_hospitals]
-            data_splits[assigned_hospital].append((img,label))
+            data_splits[assigned_hospital].append({
+                "path": img, 
+                "label": label
+            })
 
     return data_splits

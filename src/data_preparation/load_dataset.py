@@ -20,14 +20,14 @@ def load_images(data_path):
     
     Parameters
     ----------
-    data_path : String
+    data_path : str
         String with the path to the directory that contains the image directories.
 
     Returns
     -------
-    result: Dict[str,List[Image]]
-        A dictionary mapping each class label to a list of the images that belong
-        to the class.
+    result: dict[str,List[str]]
+        A dictionary mapping each class label to a list with the paths of the
+        images that belong to the class.
     """
     path = Path(data_path)
 
@@ -52,6 +52,6 @@ def load_images(data_path):
                 continue
 
             img = Image.open(image_path).convert("RGB")
-            result[image_class.name].append(img)
+            result[image_class.name].append(image_path)
 
     return result
