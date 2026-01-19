@@ -1,6 +1,6 @@
 from data_preparation.load_dataset import load_images
 from data_preparation.split_data import split_data_by_hospital
-from datasites.generate_datasites import generate_datasites
+from datasites.generate_datasites import generate_datasites_orchestra_launch
 from datasites.generate_dataset import upload_data
 from config.constants import *
 
@@ -13,7 +13,7 @@ def main():
     hospitals_data = split_data_by_hospital(images,HOSPITALS)
 
     # Generate a datasite per hospital
-    datasites = generate_datasites(HOSPITALS)
+    datasites = generate_datasites_orchestra_launch(HOSPITALS)
 
     # Upload the generated data to the corresponding datasite
     upload_data(datasites,hospitals_data)

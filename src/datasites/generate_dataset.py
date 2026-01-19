@@ -19,12 +19,12 @@ def generate_asset(name,desc,generated_data,mock,contributor):
         mock: primitives or pandas dataframe or numpy arrays
             Structure with fake data that has the same format as generated_data
             and can be used to test if data modifications on the datasite work properly.
-        contributor: Contributor
+        contributor: sy.Contributor
             PySyft Contributor object that has created the asset.
 
     Returns
     -------
-    result: Asset
+    result: sy.Asset
         PySyft Asset with the corresponding parameters.
     """
     return sy.Asset(
@@ -45,14 +45,14 @@ def generate_dataset(name,desc,assets,contributor):
             String that represents the name of the dataset.
         desc : str
             String with the description of the dataset.
-        assets : List[Asset]
+        assets : List[sy.Asset]
             A list containing the PySyft Assets that will be added to the dataset.
-        contributor: Contributor
+        contributor: sy.Contributor
             PySyft Contributor object that has created the dataset.
 
     Returns
     -------
-    result: Dataset
+    result: sy.Dataset
         PySyft Dataset with the corresponding parameters.
     """
     return sy.Dataset(

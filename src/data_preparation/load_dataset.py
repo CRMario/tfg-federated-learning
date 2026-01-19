@@ -51,7 +51,7 @@ def load_images(data_path):
             if image_path.suffix.lower() not in EXTENSIONS:
                 continue
 
-            img = Image.open(image_path).convert("RGB")
+            #img = Image.open(image_path).convert("RGB")
             result[image_class.name].append(image_path)
 
     return result
