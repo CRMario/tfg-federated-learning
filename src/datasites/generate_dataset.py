@@ -88,7 +88,7 @@ def upload_data(datasites,data):
         #################
         # We now try to retrieve the data. We use the admin user for now so we should be able
         # to see the data (a data scientist user wouldn't be able to do so).
-        #retrieved_dataset = admin_client.datasets[0]
-        #retrieved_asset = retrieved_dataset.assets[0]
-        #private_data = retrieved_asset.data
-        #print(private_data)
+        retrieved_dataset = admin_client.datasets[0]
+        retrieved_asset = retrieved_dataset.assets[0]
+        private_data = retrieved_asset.data
+        print(private_data)

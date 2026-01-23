@@ -1,9 +1,14 @@
 import random as rand
+import numpy as np
+import pickle
+import os
+import json
+from utils.config import *
 
-def split_data_by_hospital(images,hospitals,seed=42):
+def split_data_by_client(images,seed=42):
     """
-    Splits the given images between the hospitals by shuffling the lists
-    of images. Each hospital is given an equal amount of images of each label.
+    Splits the given images between the clients by shuffling the lists
+    of images. Each client is given an equal amount of images of each label.
 
     Parameters
     ----------
@@ -11,34 +16,42 @@ def split_data_by_hospital(images,hospitals,seed=42):
         A dictionary where the key is the label and the value is a
         list containing all the images that were assigned to that label.
 
-    hospitals : List[str]
-        A list with the name of the hospitals.
-
     seed : int
         An integer that initializes the rand.
         
     Returns
     -------
-    data_splits: dict[str,List[dict[str,str]]]
-        A dictionary mapping each hospital to a list containing a dictionary
-        with the images paths alongside their given label.
+    data_splits: Dict[str,Dict[str,List[str]]]
+        A dictionary mapping each client to a dictionary that
+        maps each label to a list of images that have that label.
     """
 
-    rand.seed(seed)
-    # Create a dictonary for each of the hospitals
-    data_splits = {}
-    for hospital in hospitals:
-        data_splits[hospital] = []
-    # Equally split the images amongst the hospitals
-    n_hospitals = len(hospitals)
-    for label, imgs in images.items():
-         # Shuffle each list of images
-        rand.shuffle(imgs)
-        for i, img in enumerate(imgs):
-            assigned_hospital = hospitals[i % n_hospitals]
-            data_splits[assigned_hospital].append({
-                "path": img, 
-                "label": label
-            })
+    config = load_config("./data/processed/config.json")
+    n_clients = config["n_clients"]
+    hospital_names = [f"hospital_{i}" for i in range(n_clients)]
+    split_method = config["split_method"]
+    alpha = config["alpha"]
 
-    return data_splits
+    np.random.seed(seed)
+    rand.seed(seed)
+
+    hospital_data = {name: {} for name in hospital_names}
+    
+    for label, imgs in images.items():
+        # Shuffle the array of images
+        rand.shuffle(imgs)
+
+        proportions = (np.random.dirichlet([alpha] * n_clients) if split_method == "non-iid" else np.full(n_clients, 1.0 / n_clients))
+        counts = (proportions * len(imgs)).astype(int) # Convert to image count, example [680,2380,340] 
+        counts[-1] = len(imgs) - np.sum(counts[:-1]) #Fix rounding and give it to the last hospital
+            
+        start = 0
+        for hospital, count in enumerate(counts):
+            # Assign for each label of each hospital the list of shuffled images
+            # with the size determined by counts
+            h_name = hospital_names[hospital]
+            end = start + count
+            hospital_data[h_name][label] = imgs[start:end]
+            start = end
+    
+    return hospital_data

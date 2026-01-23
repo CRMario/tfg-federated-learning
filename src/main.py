@@ -1,22 +1,18 @@
-from data_preparation.load_dataset import load_images
-from data_preparation.split_data import split_data_by_hospital
-from datasites.generate_datasites import generate_datasites_orchestra_launch
-from datasites.generate_dataset import upload_data
-from config.constants import *
+#from src.datasites.generate_datasites import generate_datasites_orchestra_launch
+#from src.datasites.generate_dataset import upload_data
+from src.config.constants import *
+from src.server.fedavg import FedAvgServer
 
 def main():
 
-    # Load the images of the dataset
-    images = load_images(DATA_PATH)
+    # Create the clients
+    #hospital_a = Client()
+    #hospital_b = Client()
+    #hospital_c = Client()
 
-    # Split the images amongst the hospitals
-    hospitals_data = split_data_by_hospital(images,HOSPITALS)
-
-    # Generate a datasite per hospital
-    datasites = generate_datasites_orchestra_launch(HOSPITALS)
-
-    # Upload the generated data to the corresponding datasite
-    upload_data(datasites,hospitals_data)
+    # Create the central server
+    #server = FedAvgServer()
+    pass
 
 if __name__ == "__main__":
     main()

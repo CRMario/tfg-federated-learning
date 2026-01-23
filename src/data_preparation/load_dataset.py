@@ -38,20 +38,22 @@ def load_images(data_path):
         raise NotADirectoryError(f"Data path is not a directory: {path}")
     
     result = {}
-    for image_class in Path(data_path).iterdir():
+    for image_class in path.iterdir():
 
         # Create a dictionary of each of the labels
         result[image_class.name] = []
         
-        if not image_class.is_dir():
+        if not image_class.is_dir() or image_class.name.startswith('.'):
             continue
+
+        image_paths = []
 
         for image_path in image_class.iterdir():
 
-            if image_path.suffix.lower() not in EXTENSIONS:
-                continue
+            if image_path.suffix.lower() in EXTENSIONS:
+                image_paths.append(str(image_path))
 
-            #img = Image.open(image_path).convert("RGB")
-            result[image_class.name].append(image_path)
+        if (image_paths):
+            result[image_class.name] = image_paths
 
     return result
