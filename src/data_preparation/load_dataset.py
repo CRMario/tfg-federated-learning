@@ -1,5 +1,4 @@
 from pathlib import Path
-from PIL import Image
 
 EXTENSIONS = {".jpg", ".jpeg", ".png"}
 

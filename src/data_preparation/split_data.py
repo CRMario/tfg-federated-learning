@@ -1,8 +1,5 @@
 import random as rand
 import numpy as np
-import pickle
-import os
-import json
 from utils.config import *
 
 def split_data_by_client(images,seed=42):
@@ -31,11 +28,12 @@ def split_data_by_client(images,seed=42):
     hospital_names = [f"hospital_{i}" for i in range(n_clients)]
     split_method = config["split_method"]
     alpha = config["alpha"]
+    train_ratio = config["train"]
 
     np.random.seed(seed)
     rand.seed(seed)
 
-    hospital_data = {name: {} for name in hospital_names}
+    hospital_data = {name: {"train": {}, "test": {}} for name in hospital_names}
     
     for label, imgs in images.items():
         # Shuffle the array of images
@@ -51,7 +49,11 @@ def split_data_by_client(images,seed=42):
             # with the size determined by counts
             h_name = hospital_names[hospital]
             end = start + count
-            hospital_data[h_name][label] = imgs[start:end]
+
+            client_images = imgs[start:end]
+            train = int(len(client_images) * train_ratio)
+            hospital_data[h_name]["train"][label] = client_images[:train]
+            hospital_data[h_name]["test"][label] = client_images[train:]
             start = end
     
     return hospital_data

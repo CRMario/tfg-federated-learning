@@ -15,6 +15,8 @@ def main():
     parser.add_argument("--n_clients",type=int,default=3)
 
     # Data arguments
+    parser.add_argument("--train",type=float, default=0.8,
+                        help="Controls the proportion of train data.")
     parser.add_argument("--split_method", type=str, choices=["iid","non-iid"],
                         default="iid",help="Choose how the data will be split across clients.")
     parser.add_argument("--alpha",type=float, default=0.5,
@@ -44,7 +46,7 @@ def main():
     # Create a pickle file to store the splits
     pickle_file = os.path.join(save_path, "splits.pkl")
 
-    # 3. Dump the dictionary
+    #Dump the hospital data in a pickle file
     with open(pickle_file, "wb") as f:
         pickle.dump(hospitals_splits, f)
 

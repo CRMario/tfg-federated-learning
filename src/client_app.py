@@ -1,0 +1,95 @@
+import torch
+import gc
+from flwr.app import ArrayRecord, Context, Message, MetricRecord, RecordDict
+from flwr.clientapp import ClientApp
+
+from src.task import CNN, load_data
+from src.task import test as test_fn
+from src.task import train as train_fn
+
+# Initialize the client application
+app = ClientApp()
+
+@app.train()
+def train(msg: Message, context: Context):
+
+    # Load the CNN
+    model = CNN()
+    # Receive the global aggregated weights 
+    model.load_state_dict(msg.content["arrays"].to_torch_state_dict())
+    # Move to gpu if possible
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    model.to(device)
+
+    # Load the local data
+    partition_id = context.node_config["partition-id"]
+    batch_size = context.run_config["batch-size"]
+    trainloader, _ = load_data(partition_id, batch_size)
+
+    # Call the training function
+    train_loss = train_fn(
+        model,
+        trainloader,
+        context.run_config["local-epochs"],
+        msg.content["config"]["lr"],
+        device,
+    )
+
+    # Return a reply with the metrics after training
+    model_record = ArrayRecord(model.state_dict())
+    metrics = {
+        "train_loss": train_loss,
+        "num-examples": len(trainloader.dataset),
+    }
+    metric_record = MetricRecord(metrics)
+    content = RecordDict({"arrays": model_record, "metrics": metric_record})
+
+    # Collect garbage
+    del model
+    del trainloader
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+    return Message(content=content, reply_to=msg)
+
+@app.evaluate()
+def evaluate(msg: Message, context: Context):
+
+    # Load the model
+    model = CNN()
+    # Get the aggregated globla weights
+    model.load_state_dict(msg.content["arrays"].to_torch_state_dict())
+    # Move to GPU if possible
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    model.to(device)
+
+    # Load the data
+    partition_id = context.node_config["partition-id"]
+    batch_size = context.run_config["batch-size"]
+    _, valloader = load_data(partition_id, batch_size)
+
+    # Call the evaluation function
+    eval_loss, eval_acc = test_fn(
+        model,
+        valloader,
+        device,
+    )
+
+    # Construct and return reply Message with metrics after evaluation
+    metrics = {
+        "eval_loss": eval_loss,
+        "eval_acc": eval_acc,
+        "num-examples": len(valloader.dataset),
+    }
+    metric_record = MetricRecord(metrics)
+    content = RecordDict({"metrics": metric_record})
+
+    # Collect garbage
+    del model
+    del valloader
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+    return Message(content=content, reply_to=msg)
