@@ -158,7 +158,7 @@ def load_data(partition_id: int, batch_size: int):
 
     return trainloader, testloader
 
-def train(model, trainloader, epochs, lr, device):
+def train_fedavg(model, trainloader, epochs, lr, device):
     model.to(device)
     # Use SGD with a CrossEntropyLoss function
     criterion = torch.nn.CrossEntropyLoss().to(device)
@@ -178,7 +178,7 @@ def train(model, trainloader, epochs, lr, device):
     return avg_trainloss
 
 
-def test(net, testloader, device):
+def test_fedavg(net, testloader, device):
     # Test the accuracy and loss
     net.to(device)
     criterion = torch.nn.CrossEntropyLoss()
@@ -193,3 +193,23 @@ def test(net, testloader, device):
     accuracy = correct / len(testloader.dataset)
     loss = loss / len(testloader)
     return loss, accuracy
+
+
+def train_scaffold(global_c, local_c, model, trainloader, epochs, lr, device, **kwargs):
+    model.to(device)
+    # Use SGD with a CrossEntropyLoss function
+    criterion = torch.nn.CrossEntropyLoss().to(device)
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
+    model.train()
+    running_loss = 0.0
+    for _ in range(epochs):
+        for batch in trainloader:
+            images = batch["img"].to(device)
+            labels = batch["label"].to(device)
+            optimizer.zero_grad()
+            loss = criterion(model(images), labels)
+            loss.backward()
+            optimizer.step()
+            running_loss += loss.item()
+    avg_trainloss = running_loss / len(trainloader)
+    return avg_trainloss

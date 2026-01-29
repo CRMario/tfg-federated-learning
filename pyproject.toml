@@ -25,12 +25,14 @@ serverapp = "src.server_app:app"
 clientapp = "src.client_app:app"
 
 [tool.flwr.app.config]
+strategy = "fedavg"
 num-server-rounds = 10
 fraction-train = 0.025
 fraction-evaluate = 0.05
 local-epochs = 3
-learning-rate = 0.001
+learning-rate = 0.001 
 batch-size = 16
+global-lr = 0.001           # Used by SCAFFOLD, overwrite in scaffold.toml
 
 [tool.flwr.federations]
 default = "local-simulation"

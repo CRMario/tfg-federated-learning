@@ -2,19 +2,46 @@ import torch
 from flwr.app import ArrayRecord, ConfigRecord, Context
 from flwr.serverapp import Grid, ServerApp
 from flwr.serverapp.strategy import FedAvg
+from src.strategies.scaffold import SCAFFOLD
 
 from src.task import CNN
+
+STRATEGY = {
+    "fedavg": lambda configuration, initial_params, common: FedAvg(
+        **common
+    ),
+    "scaffold": lambda configuration, initial_params, common: SCAFFOLD(
+        global_lr=configuration.get("global-lr",1.0),
+        initial_model_parameters=initial_params,
+        **common
+    )
+}
 
 # Initialize the server application
 app = ServerApp()
 
 @app.main()
 def main(grid: Grid, context: Context) -> None:
+
     # Read run configuration
+    config = context.run_config
+
+    # Get the strategy from the configuration
+    strat = config.get("strategy", "fedavg") #default to fedavg
+    
+    # Read the parameters common to all strategies
     fraction_evaluate: float = context.run_config["fraction-evaluate"]
     fraction_train: float = context.run_config["fraction-train"]
     num_rounds: int = context.run_config["num-server-rounds"]
     lr: float = context.run_config["learning-rate"]
+
+    common_params = {
+        "fraction_evaluate": fraction_evaluate,
+        "fraction_train": fraction_train,
+        "min_train_nodes": 3,
+        "min_evaluate_nodes": 5,
+        "min_available_nodes": 8,
+    }
 
     # Load global model
     global_model = CNN()
@@ -22,11 +49,8 @@ def main(grid: Grid, context: Context) -> None:
     arrays = ArrayRecord(global_model.state_dict())
 
     # Initialize the strategy
-    strategy = FedAvg(fraction_train=fraction_train,
-                                fraction_evaluate=fraction_evaluate,
-                                min_train_nodes=3,
-                                min_evaluate_nodes=5,
-                                min_available_nodes=8)
+    strategy_builder = STRATEGY.get(strat,STRATEGY["fedavg"]) #default to fedavg
+    strategy = strategy_builder(configuration=config,initial_params=arrays,common=common_params)
 
     # Begin the simulation with the selected strategy
     result = strategy.start(
