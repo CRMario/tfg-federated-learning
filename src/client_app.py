@@ -10,7 +10,7 @@ from src.task import train_fedavg as train_fn_avg
 from src.task import train_scaffold as train_fn_scaffold
 
 TRAIN_FN = {
-    "fedavg": lambda _, common: train_fn_avg(
+    "fedavg": lambda extra, common: train_fn_avg(
         **common
     ),
     "scaffold": lambda extra, common: train_fn_scaffold(
@@ -45,8 +45,8 @@ def train(msg: Message, context: Context):
 
     extra = {
         # SCAFFOLD:
-        "global_c": msg.content["global-control"],
-        "local_c": context.state.array_records["c_local"]
+        "global_c": msg.content.get("global-control",0),
+        "local_c": context.state.array_records.get("c_local",0)
     }
 
     common_parameters = {
@@ -75,7 +75,7 @@ def train(msg: Message, context: Context):
         c_record = ArrayRecord(torch_state_dict=c_diff)
         content = RecordDict({"arrays": model_record, "c_values": c_record, "metrics": metric_record})
     else:
-        model_record = ArrayRecord(torch_state_dict=w_diff)
+        model_record = ArrayRecord(model.state_dict())
         content = RecordDict({"arrays": model_record, "metrics": metric_record})
 
     # Collect garbage
