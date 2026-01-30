@@ -1,10 +1,12 @@
 import logging
 import pickle
+import copy
 import torch
 import gc
 from PIL import Image
 import torch.nn as nn
 import torch.nn.functional as F
+from flwr.app import Array, ArrayRecord
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose, Normalize, ToTensor, Resize
@@ -175,7 +177,7 @@ def train_fedavg(model, trainloader, epochs, lr, device):
             optimizer.step()
             running_loss += loss.item()
     avg_trainloss = running_loss / len(trainloader)
-    return avg_trainloss
+    return avg_trainloss, {}, {}, {}
 
 
 def test_fedavg(net, testloader, device):
@@ -196,12 +198,15 @@ def test_fedavg(net, testloader, device):
 
 
 def train_scaffold(global_c, local_c, model, trainloader, epochs, lr, device, **kwargs):
+    model_params = model.state_dict()
+    ini_model = copy.deepcopy(model_params)
     model.to(device)
     # Use SGD with a CrossEntropyLoss function
     criterion = torch.nn.CrossEntropyLoss().to(device)
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0)
     model.train()
     running_loss = 0.0
+    steps = 0
     for _ in range(epochs):
         for batch in trainloader:
             images = batch["img"].to(device)
@@ -209,7 +214,35 @@ def train_scaffold(global_c, local_c, model, trainloader, epochs, lr, device, **
             optimizer.zero_grad()
             loss = criterion(model(images), labels)
             loss.backward()
+
+            # disable grad to modify the grad with glocal and local control variables
+            with torch.no_grad():
+                for name, param in model.named_parameters():
+                    if param.grad is not None:
+                        c = torch.from_numpy(global_c[name].numpy()).to(device)
+                        c_k = torch.from_numpy(local_c[name].numpy()).to(device)
+                        param.grad.data -= c_k
+                        param.grad.data += c 
+
             optimizer.step()
             running_loss += loss.item()
+            steps += 1
+
+
     avg_trainloss = running_loss / len(trainloader)
-    return avg_trainloss
+
+    c_weight = 1 / (steps * lr)
+
+    next_c, w_diff, c_diff = {}, {}, {}
+
+    for name in ini_model.keys():
+        c_k = torch.from_numpy(local_c[name].numpy()).to(device)
+        c = torch.from_numpy(global_c[name].numpy()).to(device)
+        w_ini = ini_model[name].to(device)
+        w = model_params[name].to(device)
+        next_c_value = (c_k - c + (c_weight * (w_ini - w)))
+        next_c[name] = next_c_value.detach().cpu().numpy()
+        w_diff[name] = (w - w_ini).detach().cpu()
+        c_diff[name] = (next_c_value - c_k).detach().cpu()
+
+    return avg_trainloss, w_diff, c_diff, ArrayRecord(array_dict={k: Array(v) for k,v in next_c.items()})

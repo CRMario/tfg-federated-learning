@@ -1,8 +1,9 @@
 from flwr.serverapp.strategy import FedAvg
-from flwr.serverapp.strategy.strategy_utils import sample_nodes
+from flwr.serverapp.strategy.strategy_utils import sample_nodes, validate_message_reply_consistency
 from logging import INFO
 from flwr.app import MessageType
 from flwr.common import (
+    Message,
     Array,
     ArrayRecord,
     ConfigRecord,
@@ -64,7 +65,7 @@ class SCAFFOLD(FedAvg):
         return self._construct_messages(record, node_ids, MessageType.TRAIN)
 
     def aggregate_train(self, server_round, replies):
-        valid_replies, _ = self.__check_and_log_replies(replies,is_train=True)
+        valid_replies, _ = self._check_and_log_replies(replies,is_train=False)
 
         arrays, metrics = None, None
         if valid_replies:
@@ -72,7 +73,7 @@ class SCAFFOLD(FedAvg):
         
             arrays_diff, c_diff = self._aggregate_clients_diff(reply_contents)
             arrays, c = self._aggregate(arrays_diff,c_diff)
-            metrics = self.train_metrics_aggr_fn(reply_contents)
+            metrics = self.train_metrics_aggr_fn(reply_contents,self.weighted_by_key)
             self.c_global = c
             self.last_round_model_parameters = arrays
 
@@ -85,7 +86,7 @@ class SCAFFOLD(FedAvg):
         return super().aggregate_evaluate(server_round, replies)
 
     def summary(self):
-        print("SCAFFOLD Strategy implementation from scratch.")
+        print("SCAFFOLD Strategy implementation using Flower framework.")
 
     def _aggregate_clients_diff(self, records):
         """Perform aggregation from the clients models diff"""
@@ -116,11 +117,8 @@ class SCAFFOLD(FedAvg):
                 else:
                     aggregated_c_values[key] += value.numpy() * weight
 
-        return ArrayRecord(
-            {k: Array(ndarray=v) for k, v in aggregated_np_arrays.items()}
-        ), ArrayRecord(
-            {k: Array(ndarray=v) for k, v in aggregated_c_values.items()}
-        )
+        return aggregated_np_arrays, aggregated_c_values
+        
     
     def _aggregate(self,arrays,c_values):
 
@@ -128,22 +126,55 @@ class SCAFFOLD(FedAvg):
         aggregated_c_values:  dict[str, NDArray] = {}
 
         for key, value in arrays.items():
-            if key not in aggregated_np_array:
-                aggregated_np_array[key] = (value.numpy() * self.global_lr) + self.last_round_model_parameters[key].numpy()
-            else:
-                aggregated_np_array[key] += (value.numpy() * self.global_lr) + self.last_round_model_parameters[key].numpy()
+            aggregated_np_array[key] = (value * self.global_lr) + self.last_round_model_parameters[key].numpy()
         
         weight = len(c_values) / self.num_clients
 
         for key, value in c_values.items():
-            if key not in aggregated_c_values:
-                aggregated_c_values[key] = (value.numpy() * weight) + self.c_global[key].numpy()
-            else:
-                aggregated_c_values[key] += (value.numpy() * weight) + self.c_global[key].numpy()
+            aggregated_c_values[key] = (value * weight) + self.c_global[key].numpy()
         
         return ArrayRecord(
-            {k: Array(ndarray=v) for k, v in aggregated_np_array.items()}
+            array_dict={k: Array(np.asarray(v)) for k, v in aggregated_np_array.items()}
         ), ArrayRecord(
-            {k: Array(ndarray=v) for k, v in aggregated_c_values.items()}
+            array_dict={k: Array(np.asarray(v)) for k, v in aggregated_c_values.items()}
         )
-        
+
+    def _check_and_log_replies(self, replies, is_train, validate = True):
+        if not replies:
+            return [], []
+
+        # Filter messages that carry content
+        valid_replies: list[Message] = []
+        error_replies: list[Message] = []
+        for msg in replies:
+            if msg.has_error():
+                error_replies.append(msg)
+            else:
+                valid_replies.append(msg)
+
+        log(
+            INFO,
+            "%s: Received %s results and %s failures",
+            "aggregate_train" if is_train else "aggregate_evaluate",
+            len(valid_replies),
+            len(error_replies),
+        )
+
+        # Log errors
+        for msg in error_replies:
+            log(
+                INFO,
+                "\t> Received error in reply from node %d: %s",
+                msg.metadata.src_node_id,
+                msg.error.reason,
+            )
+
+        # Ensure expected ArrayRecords and MetricRecords are received
+        if validate and valid_replies:
+            validate_message_reply_consistency(
+                replies=[msg.content for msg in valid_replies],
+                weighted_by_key=self.weighted_by_key,
+                check_arrayrecord=False, # We do not validate ArrayRecords
+            )
+
+        return valid_replies, error_replies
