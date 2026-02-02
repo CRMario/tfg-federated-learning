@@ -3,6 +3,7 @@ import pickle
 import copy
 import torch
 import gc
+import numpy as np
 from PIL import Image
 import torch.nn as nn
 import torch.nn.functional as F
@@ -160,7 +161,7 @@ def load_data(partition_id: int, batch_size: int):
 
     return trainloader, testloader
 
-def train_fedavg(model, trainloader, epochs, lr, device):
+def train_fedavg(model, trainloader, epochs, lr, device, **kwargs):
     model.to(device)
     # Use SGD with a CrossEntropyLoss function
     criterion = torch.nn.CrossEntropyLoss().to(device)
@@ -180,7 +181,7 @@ def train_fedavg(model, trainloader, epochs, lr, device):
     return avg_trainloss, {}, {}, {}
 
 
-def test_fedavg(net, testloader, device):
+def test(net, testloader, device):
     # Test the accuracy and loss
     net.to(device)
     criterion = torch.nn.CrossEntropyLoss()
@@ -192,12 +193,16 @@ def test_fedavg(net, testloader, device):
             outputs = net(images)
             loss += criterion(outputs, labels).item()
             correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
-    accuracy = correct / len(testloader.dataset)
-    loss = loss / len(testloader)
-    return loss, accuracy
+    accuracy = 0.0
+    f_loss = 0.0
+    if len(testloader.dataset) > 0:
+        accuracy = correct / len(testloader.dataset)
+        f_loss = loss / len(testloader)
+    return f_loss, accuracy
 
 
 def train_scaffold(global_c, local_c, model, trainloader, epochs, lr, device, **kwargs):
+
     model_params = model.state_dict()
     ini_model = copy.deepcopy(model_params)
     model.to(device)
@@ -228,7 +233,6 @@ def train_scaffold(global_c, local_c, model, trainloader, epochs, lr, device, **
             running_loss += loss.item()
             steps += 1
 
-
     avg_trainloss = running_loss / len(trainloader)
 
     c_weight = 1 / (steps * lr)
@@ -246,3 +250,52 @@ def train_scaffold(global_c, local_c, model, trainloader, epochs, lr, device, **
         c_diff[name] = (next_c_value - c_k).detach().cpu()
 
     return avg_trainloss, w_diff, c_diff, ArrayRecord(array_dict={k: Array(v) for k,v in next_c.items()})
+
+def train_fedprox(proximal_mu, inexact_threshold, model, trainloader, epochs, lr, device, **kwargs):
+    print(proximal_mu)
+    global_model_params = [parameter.clone() for parameter in model.parameters()]
+    model.to(device)
+    # Use SGD with a CrossEntropyLoss function
+    criterion = torch.nn.CrossEntropyLoss().to(device)
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
+
+    # Calculate the inexact condition
+    model.train()
+    first_batch = next(iter(trainloader))
+    optimizer.zero_grad()
+    init_loss = criterion(model(first_batch["img"].to(device)), first_batch["label"].to(device))
+    init_loss.backward()
+
+    # Get the initial norm
+    with torch.no_grad():
+        initial_grad_norm = torch.cat([p.grad.flatten() for p in model.parameters()]).norm(2)
+
+    optimizer.zero_grad()
+
+    model.train()
+    running_loss = 0.0
+    for _ in range(epochs):
+        for batch in trainloader:
+            images = batch["img"].to(device)
+            labels = batch["label"].to(device)
+            optimizer.zero_grad()
+            loss = criterion(model(images), labels)
+            diff = 0.0
+            for local_weight, global_weight in zip(model.parameters(), global_model_params):
+                diff += (local_weight - global_weight).norm(2)**2
+            proximal_term = (proximal_mu / 2) * diff
+            loss = loss + proximal_term
+
+            loss.backward()
+            optimizer.step()
+            running_loss += loss.item()
+        
+        with torch.no_grad():
+            current_grad_norm = torch.cat([p.grad.flatten() for p in model.parameters()]).norm(2)
+
+        if current_grad_norm <= initial_grad_norm * inexact_threshold:
+            avg_trainloss = running_loss / len(trainloader)
+            return avg_trainloss, {}, {}, {}
+        
+    avg_trainloss = running_loss / len(trainloader)
+    return avg_trainloss, {}, {}, {}

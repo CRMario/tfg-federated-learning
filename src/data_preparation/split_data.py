@@ -41,19 +41,29 @@ def split_data_by_client(images,seed=42):
 
         proportions = (np.random.dirichlet([alpha] * n_clients) if split_method == "non-iid" else np.full(n_clients, 1.0 / n_clients))
         counts = (proportions * len(imgs)).astype(int) # Convert to image count, example [680,2380,340] 
-        counts[-1] = len(imgs) - np.sum(counts[:-1]) #Fix rounding and give it to the last hospital
+        # ensure at least 1 image per client
+        if len(imgs) >= n_clients:
+            for i in range(len(counts)):
+                if counts[i] == 0:
+                    counts[i] = 1
+                    # Subtract that 1 from the client who has the most
+                    counts[np.argmax(counts)] -= 1
             
         start = 0
         for hospital, count in enumerate(counts):
-            # Assign for each label of each hospital the list of shuffled images
-            # with the size determined by counts
             h_name = hospital_names[hospital]
             end = start + count
 
             client_images = imgs[start:end]
-            train = int(len(client_images) * train_ratio)
-            hospital_data[h_name]["train"][label] = client_images[:train]
-            hospital_data[h_name]["test"][label] = client_images[train:]
+            
+            # ensure at least 1 image goes to train if count > 0
+            if len(client_images) > 0:
+                train_count = max(1, int(len(client_images) * train_ratio))
+            else:
+                train_count = 0
+
+            hospital_data[h_name]["train"][label] = client_images[:train_count]
+            hospital_data[h_name]["test"][label] = client_images[train_count:]
             start = end
     
     return hospital_data

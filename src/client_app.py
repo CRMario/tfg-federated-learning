@@ -5,9 +5,10 @@ from flwr.app import ArrayRecord, Context, Message, MetricRecord, RecordDict, Ar
 from flwr.clientapp import ClientApp
 
 from src.task import CNN, load_data
-from src.task import test_fedavg as test_fn
+from src.task import test as test_fn
 from src.task import train_fedavg as train_fn_avg
 from src.task import train_scaffold as train_fn_scaffold
+from src.task import train_fedprox as train_fn_prox
 
 TRAIN_FN = {
     "fedavg": lambda extra, common: train_fn_avg(
@@ -15,7 +16,11 @@ TRAIN_FN = {
     ),
     "scaffold": lambda extra, common: train_fn_scaffold(
         **extra, **common
+    ),
+    "fedprox": lambda extra, common: train_fn_prox(
+        **extra, **common
     )
+
 }
 
 # Initialize the client application
@@ -46,7 +51,10 @@ def train(msg: Message, context: Context):
     extra = {
         # SCAFFOLD:
         "global_c": msg.content.get("global-control",0),
-        "local_c": context.state.array_records.get("c_local",0)
+        "local_c": context.state.array_records.get("c_local",0),
+        # FedProx:
+        "proximal_mu": msg.content["config"].get("proximal-mu",0),
+        "inexact_threshold": context.run_config.get("inexact-threshold",0)
     }
 
     common_parameters = {

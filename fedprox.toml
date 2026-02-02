@@ -1,0 +1,4 @@
+strategy = "fedprox"
+proximal-mu = 0.5
+learning-rate = 0.0001
+inexact-threshold = 0.5

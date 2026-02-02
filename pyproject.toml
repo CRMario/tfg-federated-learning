@@ -27,12 +27,14 @@ clientapp = "src.client_app:app"
 [tool.flwr.app.config]
 strategy = "fedavg"
 num-server-rounds = 10
-fraction-train = 0.025
-fraction-evaluate = 0.05
-local-epochs = 3
+fraction-train = 0.75
+fraction-evaluate = 1.0
+local-epochs = 2
 learning-rate = 0.001 
-batch-size = 16
+batch-size = 32
 global-lr = 0.001           # Used by SCAFFOLD, overwrite in scaffold.toml
+proximal-mu = 5             # Used by FedProx, overwrite in fedprox.toml
+inexact-threshold = 0.5     # Used by FedProx, overwrite in fedprox.toml
 
 [tool.flwr.federations]
 default = "local-simulation"

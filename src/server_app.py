@@ -1,7 +1,7 @@
 import torch
 from flwr.app import ArrayRecord, ConfigRecord, Context
 from flwr.serverapp import Grid, ServerApp
-from flwr.serverapp.strategy import FedAvg
+from flwr.serverapp.strategy import FedAvg, FedProx
 from src.strategies.scaffold import SCAFFOLD
 
 from src.task import CNN
@@ -13,6 +13,10 @@ STRATEGY = {
     "scaffold": lambda configuration, initial_params, common: SCAFFOLD(
         global_lr=configuration.get("global-lr",1.0),
         initial_model_parameters=initial_params,
+        **common
+    ),
+    "fedprox": lambda configuration, initial_params, common: FedProx(
+        proximal_mu=configuration.get("proximal-mu",1.0),
         **common
     )
 }
@@ -38,8 +42,8 @@ def main(grid: Grid, context: Context) -> None:
     common_params = {
         "fraction_evaluate": fraction_evaluate,
         "fraction_train": fraction_train,
-        "min_train_nodes": 3,
-        "min_evaluate_nodes": 5,
+        "min_train_nodes": 6,
+        "min_evaluate_nodes": 8,
         "min_available_nodes": 8,
     }
 
