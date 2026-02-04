@@ -16,9 +16,6 @@ from flwr.serverapp.strategy.strategy_utils import log_strategy_start_info
 # Unimplemented
 class AdaptiveFL(FedAvg):
     def __init__(self, *args, **kwargs):
-
-        # Keep in memory the algorithm that is currently being used
-        self.current_alg = "FedAvg"
         
         # FedProx parameters
         self.mu = 0.0

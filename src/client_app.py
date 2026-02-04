@@ -9,6 +9,7 @@ from src.task import test as test_fn
 from src.task import train_fedavg as train_fn_avg
 from src.task import train_scaffold as train_fn_scaffold
 from src.task import train_fedprox as train_fn_prox
+from src.task import aggregate_malicious_vector
 
 TRAIN_FN = {
     "fedavg": lambda extra, common: train_fn_avg(
@@ -19,8 +20,10 @@ TRAIN_FN = {
     ),
     "fedprox": lambda extra, common: train_fn_prox(
         **extra, **common
+    ),
+    "malicious_actor_detector": lambda extra, common: train_fn_avg(
+        **common
     )
-
 }
 
 # Initialize the client application
@@ -82,6 +85,13 @@ def train(msg: Message, context: Context):
         model_record = ArrayRecord(torch_state_dict=w_diff)
         c_record = ArrayRecord(torch_state_dict=c_diff)
         content = RecordDict({"arrays": model_record, "c_values": c_record, "metrics": metric_record})
+    elif strat == "malicious_actor_detector" and partition_id == 0:
+        #model_record = ArrayRecord(aggregate_malicious_vector(model.state_dict()))
+        # for now use CNN().state_dict() which generates random parameters to check
+        # if Krum can detect this in the server
+        print("The malicious actor has been chosen for training")
+        model_record = ArrayRecord(CNN().state_dict())
+        content = RecordDict({"arrays": model_record, "metrics": metric_record})
     else:
         model_record = ArrayRecord(model.state_dict())
         content = RecordDict({"arrays": model_record, "metrics": metric_record})

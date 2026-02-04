@@ -3,6 +3,7 @@ from flwr.app import ArrayRecord, ConfigRecord, Context
 from flwr.serverapp import Grid, ServerApp
 from flwr.serverapp.strategy import FedAvg, FedProx
 from src.strategies.scaffold import SCAFFOLD
+from src.strategies.malicious_actor import MaliciousActorIIDDetector
 
 from src.task import CNN
 
@@ -17,6 +18,9 @@ STRATEGY = {
     ),
     "fedprox": lambda configuration, initial_params, common: FedProx(
         proximal_mu=configuration.get("proximal-mu",1.0),
+        **common
+    ),
+    "malicious_actor_detector": lambda configuration, initial_params, common: MaliciousActorIIDDetector(
         **common
     )
 }

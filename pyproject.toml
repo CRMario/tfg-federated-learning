@@ -26,7 +26,7 @@ clientapp = "src.client_app:app"
 
 [tool.flwr.app.config]
 strategy = "fedavg"
-num-server-rounds = 10
+num-server-rounds = 20
 fraction-train = 0.75
 fraction-evaluate = 1.0
 local-epochs = 2

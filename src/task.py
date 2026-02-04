@@ -36,7 +36,7 @@ class ImageDataset(Dataset):
         label = self.labels[id]
         id_for_label = self.id_label[label]
 
-        label = label = torch.tensor(id_for_label, dtype=torch.long)
+        label = torch.tensor(id_for_label, dtype=torch.long)
         return {"img": image, "label": label}
     
     def _apply_transforms(self,image):
@@ -252,7 +252,7 @@ def train_scaffold(global_c, local_c, model, trainloader, epochs, lr, device, **
     return avg_trainloss, w_diff, c_diff, ArrayRecord(array_dict={k: Array(v) for k,v in next_c.items()})
 
 def train_fedprox(proximal_mu, inexact_threshold, model, trainloader, epochs, lr, device, **kwargs):
-    print(proximal_mu)
+   
     global_model_params = [parameter.clone() for parameter in model.parameters()]
     model.to(device)
     # Use SGD with a CrossEntropyLoss function
@@ -299,3 +299,7 @@ def train_fedprox(proximal_mu, inexact_threshold, model, trainloader, epochs, lr
         
     avg_trainloss = running_loss / len(trainloader)
     return avg_trainloss, {}, {}, {}
+
+def aggregate_malicious_vector(model):
+    # For now unimplemented
+    pass
