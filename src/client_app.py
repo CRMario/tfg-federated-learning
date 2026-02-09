@@ -23,6 +23,9 @@ TRAIN_FN = {
     ),
     "malicious_actor_detector": lambda extra, common: train_fn_avg(
         **common
+    ),
+    "malicious_server_existing_inference": lambda extra, common: train_fn_avg(
+        **common
     )
 }
 

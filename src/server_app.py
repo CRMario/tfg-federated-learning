@@ -4,6 +4,7 @@ from flwr.serverapp import Grid, ServerApp
 from flwr.serverapp.strategy import FedAvg, FedProx
 from src.strategies.scaffold import SCAFFOLD
 from src.strategies.malicious_actor import MaliciousActorIIDDetector
+from src.strategies.malicious_server_existing_inference import MaliciousServerExistingInferenceAttack
 
 from src.task import CNN
 
@@ -22,6 +23,13 @@ STRATEGY = {
     ),
     "malicious_actor_detector": lambda configuration, initial_params, common: MaliciousActorIIDDetector(
         **common
+    ),
+    "malicious_server_existing_inference": lambda configuration, initial_params, common:
+                                            MaliciousServerExistingInferenceAttack(
+        target_img=configuration.get("target-image",ImportError),
+        null_img=configuration.get("null-image",ImportError),
+        lr=configuration.get("lr",0.001),
+        **common                  
     )
 }
 

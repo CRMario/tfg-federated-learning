@@ -1,0 +1,6 @@
+strategy = "malicious_server_existing_inference"
+target-image = "data/raw/normal/1.jpg"
+null-image = "data/experimental/dog.jpg"
+batch-size = 32
+global-lr = 1.0
+learning-rate = 0.001

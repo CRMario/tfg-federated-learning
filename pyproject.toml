@@ -32,9 +32,11 @@ fraction-evaluate = 1.0
 local-epochs = 2
 learning-rate = 0.001 
 batch-size = 32
-global-lr = 0.001           # Used by SCAFFOLD, overwrite in scaffold.toml
-proximal-mu = 5             # Used by FedProx, overwrite in fedprox.toml
-inexact-threshold = 0.5     # Used by FedProx, overwrite in fedprox.toml
+global-lr = 0.001                           # Used by SCAFFOLD, overwrite in scaffold.toml
+proximal-mu = 5                             # Used by FedProx, overwrite in fedprox.toml
+inexact-threshold = 0.5                     # Used by FedProx, overwrite in fedprox.toml
+target-image = "data/raw/normal/1.jpg"     # Used by malicious_server_existing_inference, overwrite in malicious_server_existing_inference.toml
+null-image = "data/experimental/dog.jpg"   # Used by malicious_server_existing_inference overwrite in malicious_server_existing_inference.toml
 
 [tool.flwr.federations]
 default = "local-simulation"
