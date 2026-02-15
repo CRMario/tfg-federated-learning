@@ -26,12 +26,12 @@ clientapp = "src.client_app:app"
 
 [tool.flwr.app.config]
 strategy = "fedavg"
-num-server-rounds = 20
+num-server-rounds = 10 # change back to 10
 fraction-train = 0.75
 fraction-evaluate = 1.0
-local-epochs = 2
-learning-rate = 0.001 
-batch-size = 32
+local-epochs = 2 # change back to 5?
+learning-rate = 0.0001 
+batch-size = 16
 global-lr = 0.001                           # Used by SCAFFOLD, overwrite in scaffold.toml
 proximal-mu = 5                             # Used by FedProx, overwrite in fedprox.toml
 inexact-threshold = 0.5                     # Used by FedProx, overwrite in fedprox.toml
@@ -43,12 +43,12 @@ default = "local-simulation"
 
 [tool.flwr.federations.local-simulation]
 options.num-supernodes = 8
-options.backend.client-resources.num-cpus = 8.0  # Limits to 2 clients at a time (since the machine has 16 cpus)
+options.backend.client-resources.num-cpus = 4.0  # Limits to 2 clients at a time (since the machine has 16 cpus)
 options.backend.client-resources.num-gpus = 0.0
 
 [tool.flwr.federations.local-simulation-gpu]
 options.num-supernodes = 8
-options.backend.client-resources.num-cpus = 16 
+options.backend.client-resources.num-cpus = 4.0
 options.backend.client-resources.num-gpus = 0.0 
 
 [tool.flwr.federations.supergrid-deployment]

@@ -31,7 +31,7 @@ class ImageDataset(Dataset):
     def __getitem__(self, id):
         image_path = self.images[id]
         # only load the image when necessary (when we get the image)
-        image = Image.open(image_path).convert('L')
+        image = Image.open(image_path).convert('RGB')
         image = self._apply_transforms(image)
         label = self.labels[id]
         id_for_label = self.id_label[label]
@@ -46,7 +46,7 @@ class CNN(nn.Module):
     def __init__(self, n_conv_layers=3, starting_filters=16, n_labels=3, kernel_size=3):
         super().__init__()
         conv_layers = []
-        in_channels = 1
+        in_channels = 1 #or 3 depending if L or RGB TODO check which scores better
         out_channels = starting_filters
         actual_size = 224
 
@@ -110,7 +110,6 @@ def main():
         lr=0.001,
         batch_size=32,
         max_epochs=10,
-        train_split=None,
         iterator_train__num_workers=8
     )
 
@@ -132,18 +131,17 @@ def main():
 
     y_true = [y for y in y_test]
 
-    model.fit(X_train,y_train)
-    predictions = model.predict(X_test)
-    print("Accuracy:", accuracy_score(y_true, predictions)) 
-    print("\nClassification Report:\n", classification_report(y_true, predictions))   
+    grid_search = GridSearchCV(model, params, refit=True, cv=3)
+    grid_search.fit(X_train,y_train)
+    
+    print(f"Best score: {grid_search.best_score_}")
+    print(f"Best parameters: {grid_search.best_params_}")
 
-    #grid_search = GridSearchCV(model, params, refit=True, cv=3)
-    #grid_search.fit(X_train,y_train)
+    y_pred = grid_search.predict(X_test)
 
-    #print(f"Best Score: {grid_search.best_score_}")
-    #print(f"Best Params: {grid_search.best_params_}")
-
-    #grid_search.predict(X_test)
+    print(f"Accuracy: {accuracy_score(y_true, y_pred)}")
+    print(f"Confusion matrix: {confusion_matrix(y_true, y_pred)}")
+    print(f"Report: {classification_report(y_true, y_pred)}")
 
 
 if __name__ == "__main__":

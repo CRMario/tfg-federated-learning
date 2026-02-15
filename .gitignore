@@ -7,4 +7,4 @@ data/experimental/*
 __pycache__/
 *.pt
 wandb/
-outputs/
+outputs/*

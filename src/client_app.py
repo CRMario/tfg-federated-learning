@@ -26,6 +26,9 @@ TRAIN_FN = {
     ),
     "malicious_server_existing_inference": lambda extra, common: train_fn_avg(
         **common
+    ),
+    "malicious_server_metric_based": lambda extra, common: train_fn_avg(
+        **common
     )
 }
 
@@ -52,7 +55,7 @@ def train(msg: Message, context: Context):
     # Load the local data
     partition_id = context.node_config["partition-id"]
     batch_size = context.run_config["batch-size"]
-    trainloader, _ = load_data(partition_id, batch_size)
+    trainloader, _, label_mappings = load_data(partition_id, batch_size)
 
     extra = {
         # SCAFFOLD:
@@ -73,10 +76,11 @@ def train(msg: Message, context: Context):
 
     # Call the training function
     train_fn= TRAIN_FN.get(strat,TRAIN_FN["fedavg"])
-    train_loss, w_diff, c_diff, new_c = train_fn(extra=extra,common=common_parameters)
+    train_loss, train_acc, w_diff, c_diff, new_c = train_fn(extra=extra,common=common_parameters)
 
     metrics = {
         "train_loss": train_loss,
+        "train_acc": train_acc,
         "num-examples": len(trainloader.dataset),
     }
 
@@ -98,6 +102,8 @@ def train(msg: Message, context: Context):
     else:
         model_record = ArrayRecord(model.state_dict())
         content = RecordDict({"arrays": model_record, "metrics": metric_record})
+        if (partition_id == 0):
+            print(f"These are the following label mappings: {label_mappings}")
 
     # Collect garbage
     del model
@@ -122,21 +128,24 @@ def evaluate(msg: Message, context: Context):
     # Load the data
     partition_id = context.node_config["partition-id"]
     batch_size = context.run_config["batch-size"]
-    _, valloader = load_data(partition_id, batch_size)
+    _, valloader, label_mapings = load_data(partition_id, batch_size)
 
     # Call the evaluation function
-    eval_loss, eval_acc = test_fn(
+    eval_loss, eval_acc, confusion_matrix = test_fn(
         model,
         valloader,
         device,
+        list(label_mapings.keys())
     )
 
     # Construct and return reply Message with metrics after evaluation
     metrics = {
         "eval_loss": eval_loss,
         "eval_acc": eval_acc,
+        "confusion_matrix": confusion_matrix,
         "num-examples": len(valloader.dataset),
     }
+
     metric_record = MetricRecord(metrics)
     content = RecordDict({"metrics": metric_record})
 

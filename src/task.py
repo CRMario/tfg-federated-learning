@@ -11,6 +11,7 @@ from flwr.app import Array, ArrayRecord
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose, Normalize, ToTensor, Resize
+from sklearn.metrics import confusion_matrix
 
 
 class ImageDataset(Dataset):
@@ -24,6 +25,7 @@ class ImageDataset(Dataset):
         unique_labels = sorted(list(set(labels)))
         # for converting the labels into integers to use them in the dataloader
         self.id_label = {label: i for i, label in enumerate(unique_labels)}
+        self.label_id = {i: label for label, i in self.id_label.items()}
 
     def __len__(self):
         return len(self.images)
@@ -41,7 +43,10 @@ class ImageDataset(Dataset):
     
     def _apply_transforms(self,image):
         return self.transforms(image)
-
+    
+    def get_label_name_map(self):
+        return self.label_id
+    
 class CNN(nn.Module):
     """
     ###########################################################################
@@ -159,7 +164,7 @@ def load_data(partition_id: int, batch_size: int):
 
     gc.collect()
 
-    return trainloader, testloader
+    return trainloader, testloader, test_ds.get_label_name_map()
 
 def train_fedavg(model, trainloader, epochs, lr, device, **kwargs):
     model.to(device)
@@ -168,37 +173,54 @@ def train_fedavg(model, trainloader, epochs, lr, device, **kwargs):
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
     model.train()
     running_loss = 0.0
+    correct = 0
+    total = 0
     for _ in range(epochs):
         for batch in trainloader:
             images = batch["img"].to(device)
             labels = batch["label"].to(device)
             optimizer.zero_grad()
-            loss = criterion(model(images), labels)
+            out = model(images)
+            loss = criterion(out, labels)
             loss.backward()
             optimizer.step()
             running_loss += loss.item()
+            # get training accuracy
+            _, predicted = torch.max(out,dim=1)
+            correct += (predicted == labels).sum().item()
+            total += len(labels)
     avg_trainloss = running_loss / len(trainloader)
-    return avg_trainloss, {}, {}, {}
+    train_accuracy = correct / total
+    return avg_trainloss, train_accuracy, {}, {}, {}
 
 
-def test(net, testloader, device):
+def test(net, testloader, device, all_labels):
     # Test the accuracy and loss
     net.to(device)
     criterion = torch.nn.CrossEntropyLoss()
     correct, loss = 0, 0.0
+    test_predictions, test_labels = [], []
     with torch.no_grad():
         for batch in testloader:
             images = batch["img"].to(device)
             labels = batch["label"].to(device)
             outputs = net(images)
             loss += criterion(outputs, labels).item()
-            correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
+            _, predicted = torch.max(outputs.data, 1)
+            correct += (predicted == labels).sum().item()
+            
+            test_predictions.extend(predicted.cpu().numpy())
+            test_labels.extend(labels.cpu().numpy())
+
     accuracy = 0.0
     f_loss = 0.0
     if len(testloader.dataset) > 0:
         accuracy = correct / len(testloader.dataset)
         f_loss = loss / len(testloader)
-    return f_loss, accuracy
+        cm = confusion_matrix(y_true=test_labels,
+                            y_pred=test_predictions,
+                            labels=all_labels)
+    return f_loss, accuracy, cm.flatten().tolist()
 
 
 def train_scaffold(global_c, local_c, model, trainloader, epochs, lr, device, **kwargs):
@@ -211,13 +233,16 @@ def train_scaffold(global_c, local_c, model, trainloader, epochs, lr, device, **
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0)
     model.train()
     running_loss = 0.0
+    correct = 0
+    total = 0
     steps = 0
     for _ in range(epochs):
         for batch in trainloader:
             images = batch["img"].to(device)
             labels = batch["label"].to(device)
             optimizer.zero_grad()
-            loss = criterion(model(images), labels)
+            out = model(images)
+            loss = criterion(out, labels)
             loss.backward()
 
             # disable grad to modify the grad with glocal and local control variables
@@ -232,7 +257,12 @@ def train_scaffold(global_c, local_c, model, trainloader, epochs, lr, device, **
             optimizer.step()
             running_loss += loss.item()
             steps += 1
+            # get training accuracy
+            _, predicted = torch.max(out,dim=1)
+            correct += (predicted == labels).sum().item()
+            total += len(labels)
 
+    training_accuracy = correct / total
     avg_trainloss = running_loss / len(trainloader)
 
     c_weight = 1 / (steps * lr)
@@ -249,7 +279,7 @@ def train_scaffold(global_c, local_c, model, trainloader, epochs, lr, device, **
         w_diff[name] = (w - w_ini).detach().cpu()
         c_diff[name] = (next_c_value - c_k).detach().cpu()
 
-    return avg_trainloss, w_diff, c_diff, ArrayRecord(array_dict={k: Array(v) for k,v in next_c.items()})
+    return avg_trainloss, training_accuracy, w_diff, c_diff, ArrayRecord(array_dict={k: Array(v) for k,v in next_c.items()})
 
 def train_fedprox(proximal_mu, inexact_threshold, model, trainloader, epochs, lr, device, **kwargs):
    
@@ -274,12 +304,15 @@ def train_fedprox(proximal_mu, inexact_threshold, model, trainloader, epochs, lr
 
     model.train()
     running_loss = 0.0
+    correct = 0
+    total = 0
     for _ in range(epochs):
         for batch in trainloader:
             images = batch["img"].to(device)
             labels = batch["label"].to(device)
             optimizer.zero_grad()
-            loss = criterion(model(images), labels)
+            out = model(images)
+            loss = criterion(out, labels)
             diff = 0.0
             for local_weight, global_weight in zip(model.parameters(), global_model_params):
                 diff += (local_weight - global_weight).norm(2)**2
@@ -289,6 +322,10 @@ def train_fedprox(proximal_mu, inexact_threshold, model, trainloader, epochs, lr
             loss.backward()
             optimizer.step()
             running_loss += loss.item()
+
+            _, predicted = torch.max(out,dim=1)
+            correct += (predicted == labels).sum().item()
+            total += len(labels)
         
         with torch.no_grad():
             current_grad_norm = torch.cat([p.grad.flatten() for p in model.parameters()]).norm(2)
@@ -298,7 +335,8 @@ def train_fedprox(proximal_mu, inexact_threshold, model, trainloader, epochs, lr
             return avg_trainloss, {}, {}, {}
         
     avg_trainloss = running_loss / len(trainloader)
-    return avg_trainloss, {}, {}, {}
+    training_accuracy = correct / total
+    return avg_trainloss, training_accuracy, {}, {}, {}
 
 def aggregate_malicious_vector(model):
     # For now unimplemented

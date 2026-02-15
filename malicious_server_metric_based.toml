@@ -1,0 +1,4 @@
+strategy = "malicious_server_metric_based"
+target-image = "data/raw/normal/1.jpg"
+null-image = "data/experimental/dog.jpg"
+num-server-rounds = 10
