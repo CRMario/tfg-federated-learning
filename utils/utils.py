@@ -54,6 +54,8 @@ def aggregate_metricrecords(
                     if key == weighting_metric_name:
                         # We exclude the weighting key from the aggregated MetricRecord
                         continue
+                    if key == "precision":
+                        continue
                     if key not in aggregated_metrics:
                         if isinstance(value, list):
                             aggregated_metrics[key] = [v * weight for v in value]
@@ -76,9 +78,8 @@ def aggregate_metricrecords(
             precision = tp / (tp + fp) if (tp + fp) > 0 else 0
             recall = tp / (tp + fn) if (tp + fn) > 0 else 0
             f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
-            aggregated_metrics[f"precision_label{label_id}"] = precision.item()
-            aggregated_metrics[f"recall_label{label_id}"] = recall.item()
-            aggregated_metrics[f"f1_score_label{label_id}"] = f1_score.item()
+            aggregated_metrics[f"precision_label{label_id}"] = float(precision)
+            aggregated_metrics[f"recall_label{label_id}"] = float(recall)
+            aggregated_metrics[f"f1_score_label{label_id}"] = float(f1_score)
 
         return aggregated_metrics
-        

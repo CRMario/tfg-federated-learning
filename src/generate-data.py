@@ -37,6 +37,18 @@ def main():
     # Load the images of the dataset
     images = load_images(DATA_PATH)
 
+    unique_labels = sorted(list(images.keys()))
+    label_to_id = {label: i for i, label in enumerate(unique_labels)}
+    id_to_label = {i: label for label, i in label_to_id.items()}
+
+    label_mappings = {
+        "label_to_id": label_to_id,
+        "id_to_label": id_to_label
+    }
+
+    with open(os.path.join(args.save_path, 'label_mappings.json'), 'w') as f:
+        json.dump(label_mappings, f, indent=4)
+
     # Split the images amongst the hospitals
     hospitals_splits = split_data_by_client(images)
 

@@ -15,6 +15,9 @@ TRAIN_FN = {
     "fedavg": lambda extra, common: train_fn_avg(
         **common
     ),
+    "fedavg_precision_based": lambda extra, common: train_fn_avg(
+        **common
+    ),
     "scaffold": lambda extra, common: train_fn_scaffold(
         **extra, **common
     ),
@@ -117,6 +120,7 @@ def train(msg: Message, context: Context):
 @app.evaluate()
 def evaluate(msg: Message, context: Context):
 
+    strat = context.run_config.get("strategy","fedavg")
     # Load the model
     model = CNN()
     # Get the aggregated globla weights
@@ -131,12 +135,13 @@ def evaluate(msg: Message, context: Context):
     _, valloader, label_mapings = load_data(partition_id, batch_size)
 
     # Call the evaluation function
-    eval_loss, eval_acc, confusion_matrix = test_fn(
+    eval_loss, eval_acc, confusion_matrix, precision = test_fn(
         model,
         valloader,
         device,
-        list(label_mapings.keys())
+        [int(label) for label in label_mapings.keys()],
     )
+
 
     # Construct and return reply Message with metrics after evaluation
     metrics = {
@@ -144,6 +149,7 @@ def evaluate(msg: Message, context: Context):
         "eval_acc": eval_acc,
         "confusion_matrix": confusion_matrix,
         "num-examples": len(valloader.dataset),
+        "precision": float(precision)
     }
 
     metric_record = MetricRecord(metrics)

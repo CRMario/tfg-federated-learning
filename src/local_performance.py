@@ -46,7 +46,7 @@ class CNN(nn.Module):
     def __init__(self, n_conv_layers=3, starting_filters=16, n_labels=3, kernel_size=3):
         super().__init__()
         conv_layers = []
-        in_channels = 1 #or 3 depending if L or RGB TODO check which scores better
+        in_channels = 3 
         out_channels = starting_filters
         actual_size = 224
 
@@ -108,7 +108,7 @@ def main():
         criterion=nn.CrossEntropyLoss,
         optimizer=torch.optim.Adam,
         lr=0.001,
-        batch_size=32,
+        batch_size=16,
         max_epochs=10,
         iterator_train__num_workers=8
     )
@@ -117,7 +117,7 @@ def main():
     params = {
         # CNN parameters
         'module__n_conv_layers': [3, 4],
-        'module__starting_filters': [32, 64],
+        'module__starting_filters': [8, 16],
         #'module__kernel_size': [3, 5],
         # Optimization parameters
         #'lr': [0.001, 0.01]

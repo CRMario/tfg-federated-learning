@@ -3,6 +3,7 @@ import pickle
 import copy
 import torch
 import gc
+import json
 import numpy as np
 from PIL import Image
 import torch.nn as nn
@@ -11,7 +12,7 @@ from flwr.app import Array, ArrayRecord
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose, Normalize, ToTensor, Resize
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, precision_score
 
 
 class ImageDataset(Dataset):
@@ -22,10 +23,12 @@ class ImageDataset(Dataset):
     def __init__(self, images, labels):
         self.images = images
         self.labels = labels
-        unique_labels = sorted(list(set(labels)))
-        # for converting the labels into integers to use them in the dataloader
-        self.id_label = {label: i for i, label in enumerate(unique_labels)}
-        self.label_id = {i: label for label, i in self.id_label.items()}
+
+        with open('./data/processed/label_mappings.json', "r") as f:
+            label_mappings = json.load(f)
+
+        self.id_label = label_mappings["id_to_label"]
+        self.label_id = label_mappings["label_to_id"]
 
     def __len__(self):
         return len(self.images)
@@ -36,7 +39,7 @@ class ImageDataset(Dataset):
         image = Image.open(image_path).convert("RGB")
         image = self._apply_transforms(image)
         label = self.labels[id]
-        id_for_label = self.id_label[label]
+        id_for_label = self.label_id[label]
 
         label = torch.tensor(id_for_label, dtype=torch.long)
         return {"img": image, "label": label}
@@ -45,7 +48,7 @@ class ImageDataset(Dataset):
         return self.transforms(image)
     
     def get_label_name_map(self):
-        return self.label_id
+        return self.id_label
     
 class CNN(nn.Module):
     """
@@ -220,7 +223,13 @@ def test(net, testloader, device, all_labels):
         cm = confusion_matrix(y_true=test_labels,
                             y_pred=test_predictions,
                             labels=all_labels)
-    return f_loss, accuracy, cm.flatten().tolist()
+        precision = precision_score(y_true=test_labels, 
+                                    y_pred=test_predictions, 
+                                    labels=all_labels, 
+                                    average='macro', 
+                                    zero_division=0
+        )
+    return f_loss, accuracy, cm.flatten().tolist(), precision
 
 
 def train_scaffold(global_c, local_c, model, trainloader, epochs, lr, device, **kwargs):

@@ -11,12 +11,17 @@ from src.strategies.scaffold import SCAFFOLD
 from src.strategies.attacks.malicious_client import MaliciousActorIIDDetector
 from src.strategies.attacks.malicious_server_existing_inference import MaliciousServerExistingInferenceAttack
 from src.strategies.attacks.malicious_server_metric_based import MaliciousServerMetricBasedAttack
+from src.strategies.fedavg_precision import PrecisionWeightedFedAvg
 from utils.utils import aggregate_metricrecords
 
 from src.task import CNN
 
 STRATEGY = {
     "fedavg": lambda configuration, initial_params, common: FedAvg(
+        evaluate_metrics_aggr_fn=aggregate_metricrecords,
+        **common
+    ),
+    "fedavg_precision_based": lambda configuration, initial_params, common: PrecisionWeightedFedAvg(
         evaluate_metrics_aggr_fn=aggregate_metricrecords,
         **common
     ),
