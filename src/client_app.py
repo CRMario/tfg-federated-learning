@@ -4,12 +4,13 @@ import numpy as np
 from flwr.app import ArrayRecord, Context, Message, MetricRecord, RecordDict, Array
 from flwr.clientapp import ClientApp
 
-from src.task import CNN, load_data
+from src.task import CNN, load_data, load_cifar_data
 from src.task import test as test_fn
 from src.task import train_fedavg as train_fn_avg
 from src.task import train_scaffold as train_fn_scaffold
 from src.task import train_fedprox as train_fn_prox
 from src.task import aggregate_malicious_vector
+from utils.config import load_config
 
 TRAIN_FN = {
     "fedavg": lambda extra, common: train_fn_avg(
@@ -41,6 +42,9 @@ app = ClientApp()
 @app.train()
 def train(msg: Message, context: Context):
 
+    config = load_config("./data/processed/config.json")
+    dataset = config["dataset"]
+
     strat = context.run_config.get("strategy","fedavg")
 
     if strat == "scaffold" and "c_local" not in context.state.array_records:
@@ -58,7 +62,11 @@ def train(msg: Message, context: Context):
     # Load the local data
     partition_id = context.node_config["partition-id"]
     batch_size = context.run_config["batch-size"]
-    trainloader, _, label_mappings = load_data(partition_id, batch_size)
+
+    if dataset == "cifar10":
+        trainloader, _, _ = load_cifar_data(partition_id, batch_size)
+    else:
+        trainloader, _, _ = load_data(partition_id, batch_size)
 
     extra = {
         # SCAFFOLD:
@@ -105,8 +113,6 @@ def train(msg: Message, context: Context):
     else:
         model_record = ArrayRecord(model.state_dict())
         content = RecordDict({"arrays": model_record, "metrics": metric_record})
-        if (partition_id == 0):
-            print(f"These are the following label mappings: {label_mappings}")
 
     # Collect garbage
     del model
@@ -120,6 +126,9 @@ def train(msg: Message, context: Context):
 @app.evaluate()
 def evaluate(msg: Message, context: Context):
 
+    config = load_config("./data/processed/config.json")
+    dataset = config["dataset"]
+
     strat = context.run_config.get("strategy","fedavg")
     # Load the model
     model = CNN()
@@ -132,14 +141,18 @@ def evaluate(msg: Message, context: Context):
     # Load the data
     partition_id = context.node_config["partition-id"]
     batch_size = context.run_config["batch-size"]
-    _, valloader, label_mapings = load_data(partition_id, batch_size)
+
+    if dataset == "cifar10":
+        _, valloader, labels = load_cifar_data(partition_id, batch_size)
+    else:
+        _, valloader, labels = load_data(partition_id, batch_size)
 
     # Call the evaluation function
     eval_loss, eval_acc, confusion_matrix, precision = test_fn(
         model,
         valloader,
         device,
-        [int(label) for label in label_mapings.keys()],
+        labels,
     )
 
 

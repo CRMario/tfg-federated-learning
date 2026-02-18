@@ -36,10 +36,18 @@ class ImageDataset(Dataset):
     def __getitem__(self, id):
         image_path = self.images[id]
         # only load the image when necessary (when we get the image)
-        image = Image.open(image_path).convert("RGB")
+        if isinstance(image_path, str):
+            image = Image.open(image_path).convert("RGB")
+        else: #cifar10 array
+            image = Image.fromarray(image_path)
         image = self._apply_transforms(image)
+
         label = self.labels[id]
-        id_for_label = self.label_id[label]
+
+        if isinstance(label, str):
+            id_for_label = self.label_id[label]
+        else:
+            id_for_label = label
 
         label = torch.tensor(id_for_label, dtype=torch.long)
         return {"img": image, "label": label}
@@ -157,6 +165,8 @@ def load_data(partition_id: int, batch_size: int):
     train_imgs, train_labels = split(client_data["train"])
     test_imgs, test_labels = split(client_data["test"])
 
+    unique_labels = sorted(list(set(train_labels)))
+
     # Create the local dataset after processing the images
     train_ds = ImageDataset(train_imgs, train_labels)
     test_ds = ImageDataset(test_imgs, test_labels)
@@ -167,7 +177,41 @@ def load_data(partition_id: int, batch_size: int):
 
     gc.collect()
 
-    return trainloader, testloader, test_ds.get_label_name_map()
+    return trainloader, testloader, unique_labels
+
+all_client_data = None
+
+def load_cifar_data(partition_id: int, batch_size: int):
+    global all_client_data
+    
+    # Load the pickle file with the data that has been split by generate-data
+    # beforehand.
+    if all_client_data is None:
+        with open("./data/processed/splits.pkl", "rb") as f:
+            all_client_data = pickle.load(f)
+    
+    # Associate the partition_id with the corresponding client created with
+    # the same id.
+    client_name = f"client_{partition_id}"
+    client_data = all_client_data[client_name]
+
+    train_imgs = client_data["train"]["x"]
+    train_labels = client_data["train"]["y"]
+    test_imgs = client_data["test"]["x"]
+    test_labels = client_data["test"]["y"]
+
+    train_ds = ImageDataset(train_imgs, train_labels)
+    test_ds = ImageDataset(test_imgs, test_labels)
+
+    unique_labels = sorted(list(set(train_labels)))
+
+    trainloader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
+    testloader = DataLoader(test_ds, batch_size=batch_size)
+
+    gc.collect()
+
+    return trainloader, testloader, unique_labels
+
 
 def train_fedavg(model, trainloader, epochs, lr, device, **kwargs):
     model.to(device)
@@ -341,7 +385,8 @@ def train_fedprox(proximal_mu, inexact_threshold, model, trainloader, epochs, lr
 
         if current_grad_norm <= initial_grad_norm * inexact_threshold:
             avg_trainloss = running_loss / len(trainloader)
-            return avg_trainloss, {}, {}, {}
+            training_accuracy = correct / total
+            return avg_trainloss, training_accuracy, {}, {}, {}
         
     avg_trainloss = running_loss / len(trainloader)
     training_accuracy = correct / total

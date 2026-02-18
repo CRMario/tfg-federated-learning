@@ -3,6 +3,9 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as ppt
 import os
+import mlflow
+import time
+import mlflow.pytorch
 from flwr.app import ArrayRecord, ConfigRecord, Context
 from flwr.serverapp import Grid, ServerApp
 from flwr.serverapp.strategy import FedAvg, FedProx
@@ -63,49 +66,75 @@ app = ServerApp()
 @app.main()
 def main(grid: Grid, context: Context) -> None:
 
+    # Set up MLFlow tracking uri
+    mlflow.set_tracking_uri("http://localhost:5000")
+
     # Read run configuration
     config = context.run_config
 
     # Get the strategy from the configuration
     strat = config.get("strategy", "fedavg") #default to fedavg
+
+    # Set up MLFlow experiment
+    mlflow.set_experiment(strat)
+
+    current_time = time.strftime("%Y%m%d-%H%M")
+    current_run_name = f"{strat}_{current_time}"
+
+    with mlflow.start_run(run_name=current_run_name):
+
+        mlflow.log_params(config)
+        mlflow.log_param("strategy", strat)
+        mlflow.log_artifact("data/processed/config.json", artifact_path="configs")
+        mlflow.log_artifact("data/processed/label_mappings.json", artifact_path="mappings")
+
+        # Read the parameters common to all strategies
+        fraction_evaluate: float = context.run_config["fraction-evaluate"]
+        fraction_train: float = context.run_config["fraction-train"]
+        num_rounds: int = context.run_config["num-server-rounds"]
+        lr: float = context.run_config["learning-rate"]
+
+        common_params = {
+            "fraction_evaluate": fraction_evaluate,
+            "fraction_train": fraction_train,
+            "min_train_nodes": 6,
+            "min_evaluate_nodes": 8,
+            "min_available_nodes": 8,
+        }
+
+        # Load global model
+        global_model = CNN()
+        # Get the initial weights. They are randomly initialized.
+        arrays = ArrayRecord(global_model.state_dict())
+
+        # Initialize the strategy
+        strategy_builder = STRATEGY.get(strat,STRATEGY["fedavg"]) #default to fedavg
+        strategy = strategy_builder(configuration=config,initial_params=arrays,common=common_params)
+
+        # Begin the simulation with the selected strategy
+        result = strategy.start(
+            grid=grid,
+            initial_arrays=arrays,
+            train_config=ConfigRecord({"lr": lr}),
+            num_rounds=num_rounds,
+        )
+
+        for round, metrics in result.evaluate_metrics_clientapp.items():
+            for metric, value in metrics.items():
+                mlflow.log_metric(f"eval_{metric}", value, step=round)
+        for round, metrics in result.train_metrics_clientapp.items():
+            for metric, value in metrics.items():
+                mlflow.log_metric(f"train_{metric}", value, step=round)
     
-    # Read the parameters common to all strategies
-    fraction_evaluate: float = context.run_config["fraction-evaluate"]
-    fraction_train: float = context.run_config["fraction-train"]
-    num_rounds: int = context.run_config["num-server-rounds"]
-    lr: float = context.run_config["learning-rate"]
+        plot_results(result)
+        mlflow.log_artifact("outputs/global_metrics.png")
+        mlflow.log_artifact("outputs/label_metrics.png")
 
-    common_params = {
-        "fraction_evaluate": fraction_evaluate,
-        "fraction_train": fraction_train,
-        "min_train_nodes": 6,
-        "min_evaluate_nodes": 8,
-        "min_available_nodes": 8,
-    }
-
-    # Load global model
-    global_model = CNN()
-    # Get the initial weights. They are randomly initialized.
-    arrays = ArrayRecord(global_model.state_dict())
-
-    # Initialize the strategy
-    strategy_builder = STRATEGY.get(strat,STRATEGY["fedavg"]) #default to fedavg
-    strategy = strategy_builder(configuration=config,initial_params=arrays,common=common_params)
-
-    # Begin the simulation with the selected strategy
-    result = strategy.start(
-        grid=grid,
-        initial_arrays=arrays,
-        train_config=ConfigRecord({"lr": lr}),
-        num_rounds=num_rounds,
-    )
- 
-    plot_results(result)
-
-    # Save final model to disk
-    print("\nSaving final model to disk...")
-    state_dict = result.arrays.to_torch_state_dict()
-    torch.save(state_dict, "final_model.pt")
+        # Save final model to disk
+        print("\nSaving final model to disk...")
+        state_dict = result.arrays.to_torch_state_dict()
+        global_model.load_state_dict(state_dict)
+        mlflow.pytorch.log_model(global_model, name=f"final_model_{strat}")
 
 def plot_results(result):
     #result[round][metric_key]

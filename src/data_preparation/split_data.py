@@ -67,3 +67,82 @@ def split_data_by_client(images,seed=42):
             start = end
     
     return hospital_data
+
+def split_cifar_by_client(train_set, test_set):
+    config = load_config("./data/processed/config.json")
+    n_clients = config["n_clients"]
+    client_names = [f"client_{i}" for i in range(n_clients)]
+    split_method = config["split_method"]
+    alpha = config["alpha"]
+    subset = config["subset"]
+
+    # initialize the client data
+    client_names = [f"client_{i}" for i in range(n_clients)]
+    client_data = {name: {"train": {}, "test": {}} for name in client_names}
+
+    def get_balanced_data_subset(set):
+        data = set.data
+        labels = np.array(set.targets)
+
+        unique_labels = np.unique(labels)
+        n_labels = len(unique_labels)
+        t_samples = int(len(data) * subset)
+        samples_class = t_samples // n_labels # since we want a balanced subset we find an eq amount of samples for each class
+        subset_indices = []
+
+        for label in unique_labels:
+            chosen_labels = np.where(labels == label)[0] # find all sample ids with that label
+            chosen_samples = np.random.choice(chosen_labels, samples_class, replace=False) # choose just a samples_class amount of them
+            subset_indices.extend(chosen_samples)
+
+        return data[subset_indices], labels[subset_indices]
+
+    train_data, train_labels = get_balanced_data_subset(train_set)
+    test_data, test_labels = get_balanced_data_subset(test_set)
+
+    # list of indices per client
+    client_train_ids = [[] for _ in range(n_clients)]
+    client_test_ids = [[] for _ in range(n_clients)]
+
+    # cifar-10 has 10 classes (with labels 0 to 9)
+    for label in range(10):
+        train_ids_of_label = np.where(train_labels == label)[0]
+        test_ids_of_label = np.where(test_labels == label)[0]
+        np.random.shuffle(train_ids_of_label)
+        np.random.shuffle(test_ids_of_label)
+        proportions = (np.random.dirichlet([alpha] * n_clients) if split_method == "non-iid" else np.full(n_clients, 1.0 / n_clients))
+        # convert to image count. each position is the count assigned to each client
+        train_counts = (proportions * len(train_ids_of_label)).astype(int)
+        test_counts = (proportions * len(test_ids_of_label)).astype(int)
+
+        train_pos = 0
+        test_pos = 0
+        for i in range(n_clients):
+            n_train_samples = train_counts[i]
+            n_test_samples = test_counts[i]
+            train_delim = train_pos + n_train_samples
+            test_delim = test_pos + n_test_samples
+            client_train_ids[i].extend(train_ids_of_label[train_pos:train_delim])
+            client_test_ids[i].extend(test_ids_of_label[test_pos:test_delim])
+            train_pos += n_train_samples
+            test_pos += n_test_samples
+
+    # now we have the ids per client so we can assign them
+    for i, name in enumerate(client_names):
+        train_assigned_indices = client_train_ids[i]
+        np.random.shuffle(train_assigned_indices)
+        test_assigned_indices = client_test_ids[i]
+        np.random.shuffle(test_assigned_indices)
+
+        client_data[name]["train"] = {
+            "x": train_data[train_assigned_indices],
+            "y": train_labels[train_assigned_indices]
+        }
+
+        client_data[name]["test"] = {
+            "x": test_data[test_assigned_indices],
+            "y": test_labels[test_assigned_indices]
+        }
+            
+
+    return client_data

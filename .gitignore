@@ -3,8 +3,10 @@ venv/
 data/raw/*
 data/processed/*
 data/experimental/*
+data/cifar10/*
 
 __pycache__/
 *.pt
 wandb/
 outputs/*
+mlflow.db

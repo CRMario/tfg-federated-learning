@@ -30,20 +30,20 @@ num-server-rounds = 20
 fraction-train = 0.75
 fraction-evaluate = 1.0
 local-epochs = 3
-learning-rate = 0.001 
+learning-rate = 0.0001 
 batch-size = 16
-global-lr = 0.001                          # Used by SCAFFOLD, overwrite in scaffold.toml
-proximal-mu = 5                            # Used by FedProx, overwrite in fedprox.toml
-inexact-threshold = 0.5                    # Used by FedProx, overwrite in fedprox.toml
-target-image = "data/raw/normal/1.jpg"     # Used by malicious_server_existing_inference, overwrite in malicious_server_existing_inference.toml
-null-image = "data/experimental/dog.jpg"   # Used by malicious_server_existing_inference overwrite in malicious_server_existing_inference.toml
+global-lr = 0                              # Used by SCAFFOLD, overwrite in scaffold.toml
+proximal-mu = 0                            # Used by FedProx, overwrite in fedprox.toml
+inexact-threshold = 0                      # Used by FedProx, overwrite in fedprox.toml
+target-image = ""                          # Used by malicious_server_existing_inference, overwrite in malicious_server_existing_inference.toml
+null-image = ""                            # Used by malicious_server_existing_inference overwrite in malicious_server_existing_inference.toml
 
 [tool.flwr.federations]
 default = "local-simulation"
 
 [tool.flwr.federations.local-simulation]
 options.num-supernodes = 8
-options.backend.client-resources.num-cpus = 4.0  # Limits to 2 clients at a time (since the machine has 16 cpus)
+options.backend.client-resources.num-cpus = 8.0  # Limits to 2 clients at a time (since the machine has 16 cpus)
 options.backend.client-resources.num-gpus = 0.0
 
 [tool.flwr.federations.local-simulation-gpu]
