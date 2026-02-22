@@ -75,30 +75,37 @@ def split_bloodmnist_by_client(train_set, test_set):
     split_method = config["split_method"]
     alpha = config["alpha"]
     subset = config["subset"]
+    balanced = (split_method == "iid")
 
     # initialize the client data
     client_names = [f"client_{i}" for i in range(n_clients)]
     client_data = {name: {"train": {}, "test": {}} for name in client_names}
 
-    def get_balanced_data_subset(set):
-        data = set.imgs
-        labels = np.array(set.labels).flatten()
-
+    def get_proportional_subset(dataset, fraction, balance=False):
+        data = dataset.imgs
+        labels = np.array(dataset.labels).flatten()
         unique_labels = np.unique(labels)
-        n_labels = len(unique_labels)
-        t_samples = int(len(data) * subset)
-        samples_class = t_samples // n_labels # since we want a balanced subset we find an eq amount of samples for each class
         subset_indices = []
 
-        for label in unique_labels:
-            chosen_labels = np.where(labels == label)[0] # find all sample ids with that label
-            chosen_samples = np.random.choice(chosen_labels, samples_class, replace=False) # choose just a samples_class amount of them
-            subset_indices.extend(chosen_samples)
-
+        if balance: #iid
+            total_samples = int(len(data) * fraction)
+            samples_per_class = total_samples // len(unique_labels)
+            for label in unique_labels:
+                label_indices = np.where(labels == label)[0]
+                n = min(len(label_indices), samples_per_class)
+                chosen = np.random.choice(label_indices, n, replace=False)
+                subset_indices.extend(chosen)
+        else: #original distribution
+            for label in unique_labels:
+                label_indices = np.where(labels == label)[0]
+                n = int(len(label_indices) * fraction)
+                chosen = np.random.choice(label_indices, n, replace=False)
+                subset_indices.extend(chosen)
+                
         return data[subset_indices], labels[subset_indices]
 
-    train_data, train_labels = get_balanced_data_subset(train_set)
-    test_data, test_labels = get_balanced_data_subset(test_set)
+    train_data, train_labels = get_proportional_subset(train_set, subset, balanced)
+    test_data, test_labels = get_proportional_subset(test_set, subset, balanced)
 
     # list of indices per client
     client_train_ids = [[] for _ in range(n_clients)]
@@ -144,5 +151,5 @@ def split_bloodmnist_by_client(train_set, test_set):
             "y": test_labels[test_assigned_indices]
         }
             
-
+    print(client_data)
     return client_data

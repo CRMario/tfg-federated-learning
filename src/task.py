@@ -63,52 +63,31 @@ class CNN(nn.Module):
     def __init__(self, in_channels=3, n_labels=8):
         super(CNN, self).__init__()
         out_c = 16
+        self.conv1 = nn.Conv2d(in_channels=in_channels, out_channels=out_c, kernel_size=3, padding=1)
+        self.bn1 = nn.BatchNorm2d(out_c)
 
-        self.features = nn.Sequential(
-            # Convolutional Layer 1
-            nn.Conv2d(in_channels=in_channels, out_channels=out_c, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_c),
-            nn.ReLU(inplace=True),
+        self.conv2 = nn.Conv2d(in_channels=out_c, out_channels=out_c*2, kernel_size=3, padding=1)
+        self.bn2 = nn.BatchNorm2d(out_c*2)
 
-            # Convolutional Layer 2
-            nn.Conv2d(in_channels=out_c, out_channels=out_c*2, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_c*2),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(2, 2),
+        self.conv3 = nn.Conv2d(in_channels=out_c*2, out_channels=out_c*4, kernel_size=3, padding=1)
+        self.bn3 = nn.BatchNorm2d(out_c*4)
 
-            # Convolutional Layer 3
-            nn.Conv2d(in_channels=out_c*2, out_channels=out_c*4, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_c*4),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(2, 2),
+        self.pool = nn.MaxPool2d(2, 2)
 
-            # Convolutional Layer 4
-            nn.Conv2d(in_channels=out_c*4, out_channels=out_c*8, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_c*8),
-            nn.ReLU(inplace=True),
-            
-            # Convolutional Layer 5
-            nn.Conv2d(in_channels=out_c*8, out_channels=out_c*16, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_c*16),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(2, 2)
-        )
-
-        self.gap = nn.AdaptiveAvgPool2d((1, 1)) # (256,28,28)->(256,1,1)
-
-        self.classifier = nn.Sequential(
-            nn.Linear(out_c*16, 512),
-            nn.ReLU(inplace=True),
-            nn.Dropout(0.5),
-            nn.Linear(512, n_labels)
-        )
+        self.fc1 = nn.Linear(out_c*4 * 28 * 28, 128)
+        self.dropout = nn.Dropout(0.5)
+        self.fc2 = nn.Linear(128, n_labels)
 
     def forward(self, x):
-        x = self.features(x)
-        x = self.gap(x)
-        x = torch.flatten(x, 1)
-        x = self.classifier(x)
-        return x
+        x = self.pool(F.relu(self.bn1(self.conv1(x))))
+        x = self.pool(F.relu(self.bn2(self.conv2(x))))
+        x = self.pool(F.relu(self.bn3(self.conv3(x))))
+
+        x = x.view(x.size(0), -1)
+
+        x = F.relu(self.fc1(x))
+        x = self.dropout(x)
+        return self.fc2(x)
 
 
 # Cache the data
@@ -211,7 +190,7 @@ def train_fedavg(model, trainloader, epochs, lr, device, **kwargs):
             _, predicted = torch.max(out,dim=1)
             correct += (predicted == labels).sum().item()
             total += len(labels)
-    avg_trainloss = running_loss / len(trainloader)
+    avg_trainloss = running_loss / (epochs * len(trainloader))
     train_accuracy = correct / total
     return avg_trainloss, train_accuracy, {}, {}, {}
 
@@ -291,7 +270,7 @@ def train_scaffold(global_c, local_c, model, trainloader, epochs, lr, device, **
             total += len(labels)
 
     training_accuracy = correct / total
-    avg_trainloss = running_loss / len(trainloader)
+    avg_trainloss = running_loss / (epochs * len(trainloader))
 
     c_weight = 1 / (steps * lr)
 
@@ -334,6 +313,7 @@ def train_fedprox(proximal_mu, inexact_threshold, model, trainloader, epochs, lr
     running_loss = 0.0
     correct = 0
     total = 0
+    current_epoch = 1
     for _ in range(epochs):
         for batch in trainloader:
             images = batch["img"].to(device)
@@ -359,11 +339,13 @@ def train_fedprox(proximal_mu, inexact_threshold, model, trainloader, epochs, lr
             current_grad_norm = torch.cat([p.grad.flatten() for p in model.parameters()]).norm(2)
 
         if current_grad_norm <= initial_grad_norm * inexact_threshold:
-            avg_trainloss = running_loss / len(trainloader)
+            avg_trainloss = running_loss / (current_epoch * len(trainloader))
             training_accuracy = correct / total
             return avg_trainloss, training_accuracy, {}, {}, {}
+
+        current_epoch += 1
         
-    avg_trainloss = running_loss / len(trainloader)
+    avg_trainloss = running_loss / (epochs * len(trainloader))
     training_accuracy = correct / total
     return avg_trainloss, training_accuracy, {}, {}, {}
 

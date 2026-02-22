@@ -20,16 +20,16 @@ def main():
 
     # Choose the dataset
     parser.add_argument("--dataset", type=str, choices=["local", "bloodmnist"], default="local",
-                        help="Choose 'local' for your local folder-based images or 'cifar10' for an automated download. In " \
-                        "case of cifar10 only a 10 percent of the original dataset will be used")
+                        help="Choose 'local' for your local folder-based images or 'bloodmnist' for an automated download. In " \
+                        "case of bloodmnist you can specify the subset of the data to be used.")
 
-    parser.add_argument("--subset",type=float, default=0.1,
+    parser.add_argument("--subset",type=float, default=1.0,
                         help="Controls the proportion of the subset from the downloaded subset.")
 
     # Data arguments
     parser.add_argument("--train",type=float, default=0.8,
                         help="Controls the proportion of train data.")
-    parser.add_argument("--split_method", type=str, choices=["iid","non-iid"],
+    parser.add_argument("--split_method", type=str, choices=["iid","non-iid","orig-dist"],
                         default="iid",help="Choose how the data will be split across clients.")
     parser.add_argument("--alpha",type=float, default=0.5,
                         help="Controls the heterogeneity for splitting. Only useful if split_method is non-iid")
@@ -50,7 +50,6 @@ def main():
         train_set = BloodMNIST(split='train',root='./data/bloodmnist', download=True)
         test_set = BloodMNIST(split='test', root='./data/bloodmnist', download=True)
         splits = split_bloodmnist_by_client(train_set, test_set)
-
         label_mappings = {
             "label_to_id": {label: i for i, label in train_set.info['label'].items()},
             "id_to_label": {i: label for i, label in train_set.info['label'].items()}
