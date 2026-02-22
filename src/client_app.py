@@ -4,7 +4,7 @@ import numpy as np
 from flwr.app import ArrayRecord, Context, Message, MetricRecord, RecordDict, Array
 from flwr.clientapp import ClientApp
 
-from src.task import CNN, load_data, load_cifar_data
+from src.task import CNN, load_data, load_bloodmnist_data
 from src.task import test as test_fn
 from src.task import train_fedavg as train_fn_avg
 from src.task import train_scaffold as train_fn_scaffold
@@ -63,8 +63,8 @@ def train(msg: Message, context: Context):
     partition_id = context.node_config["partition-id"]
     batch_size = context.run_config["batch-size"]
 
-    if dataset == "cifar10":
-        trainloader, _, _ = load_cifar_data(partition_id, batch_size)
+    if dataset == "bloodmnist":
+        trainloader, _, _ = load_bloodmnist_data(partition_id, batch_size)
     else:
         trainloader, _, _ = load_data(partition_id, batch_size)
 
@@ -142,8 +142,8 @@ def evaluate(msg: Message, context: Context):
     partition_id = context.node_config["partition-id"]
     batch_size = context.run_config["batch-size"]
 
-    if dataset == "cifar10":
-        _, valloader, labels = load_cifar_data(partition_id, batch_size)
+    if dataset == "bloodmnist":
+        _, valloader, labels = load_bloodmnist_data(partition_id, batch_size)
     else:
         _, valloader, labels = load_data(partition_id, batch_size)
 

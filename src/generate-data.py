@@ -7,8 +7,9 @@ from sklearn.model_selection import train_test_split
 from utils.config import *
 from torchvision import datasets
 from src.data_preparation.load_dataset import load_images
-from src.data_preparation.split_data import split_data_by_client, split_cifar_by_client
+from src.data_preparation.split_data import split_data_by_client, split_bloodmnist_by_client
 from src.config.constants import *
+from medmnist import BloodMNIST
 
 # Run as python -m src.generate-data
 def main():
@@ -18,7 +19,7 @@ def main():
     parser.add_argument("--n_clients",type=int,default=3)
 
     # Choose the dataset
-    parser.add_argument("--dataset", type=str, choices=["local", "cifar10"], default="local",
+    parser.add_argument("--dataset", type=str, choices=["local", "bloodmnist"], default="local",
                         help="Choose 'local' for your local folder-based images or 'cifar10' for an automated download. In " \
                         "case of cifar10 only a 10 percent of the original dataset will be used")
 
@@ -45,14 +46,14 @@ def main():
     with open(os.path.join(args.save_path, 'config.json'), 'w') as f:
         json.dump(vars(args), f, indent=4)
 
-    if args.dataset == "cifar10":
-        train_set = datasets.CIFAR10(root='./data/cifar10', train=True, download=True)
-        test_set = datasets.CIFAR10(root='./data/cifar10', train=False, download=True)
-        splits = split_cifar_by_client(train_set, test_set)
+    if args.dataset == "bloodmnist":
+        train_set = BloodMNIST(split='train',root='./data/bloodmnist', download=True)
+        test_set = BloodMNIST(split='test', root='./data/bloodmnist', download=True)
+        splits = split_bloodmnist_by_client(train_set, test_set)
 
         label_mappings = {
-            "label_to_id": {label: i for i, label in enumerate(train_set.classes)},
-            "id_to_label": {i: label for i, label in enumerate(train_set.classes)}
+            "label_to_id": {label: i for i, label in train_set.info['label'].items()},
+            "id_to_label": {i: label for i, label in train_set.info['label'].items()}
         }
     else:
         images = load_images(args.data_path)

@@ -68,7 +68,7 @@ def split_data_by_client(images,seed=42):
     
     return hospital_data
 
-def split_cifar_by_client(train_set, test_set):
+def split_bloodmnist_by_client(train_set, test_set):
     config = load_config("./data/processed/config.json")
     n_clients = config["n_clients"]
     client_names = [f"client_{i}" for i in range(n_clients)]
@@ -81,8 +81,8 @@ def split_cifar_by_client(train_set, test_set):
     client_data = {name: {"train": {}, "test": {}} for name in client_names}
 
     def get_balanced_data_subset(set):
-        data = set.data
-        labels = np.array(set.targets)
+        data = set.imgs
+        labels = np.array(set.labels).flatten()
 
         unique_labels = np.unique(labels)
         n_labels = len(unique_labels)
@@ -104,8 +104,8 @@ def split_cifar_by_client(train_set, test_set):
     client_train_ids = [[] for _ in range(n_clients)]
     client_test_ids = [[] for _ in range(n_clients)]
 
-    # cifar-10 has 10 classes (with labels 0 to 9)
-    for label in range(10):
+    # bloodmnist has 8 classes
+    for label in range(8):
         train_ids_of_label = np.where(train_labels == label)[0]
         test_ids_of_label = np.where(test_labels == label)[0]
         np.random.shuffle(train_ids_of_label)

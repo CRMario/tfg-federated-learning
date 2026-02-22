@@ -38,7 +38,7 @@ class ImageDataset(Dataset):
         # only load the image when necessary (when we get the image)
         if isinstance(image_path, str):
             image = Image.open(image_path).convert("RGB")
-        else: #cifar10 array
+        else: #bloodmnist array
             image = Image.fromarray(image_path)
         image = self._apply_transforms(image)
 
@@ -59,81 +59,56 @@ class ImageDataset(Dataset):
         return self.id_label
     
 class CNN(nn.Module):
-    """
-    ###########################################################################
-    A CNN with two convolutional layers and three fully connected layers.
-    All the images have been resized to 224x224 beforehand.
-    ###########################################################################
-    #############
-    # Features: #
-    #############
-    # B x in_channels x 224 x 224
-    # Number of kernels: K
-    # Size of kernel: k x k
-    # Stride: 1 x 1
-    # Padding: same
-    - Convolutional layer 1: 
-        * in_channels = in_channels (defaults to RGB | in_channels = 3)
-        * out_channels = 16
-        * kernel_size = 3 x 3
-        # Number of parameters conv1 = 3 x 3 x 3 x 16 = 432
-        # Original input for next layer: B x 16 x 224 x 224
-        # Input after MaxPool2d: B x 16 x 112 x 112
-    - Convolutional layer 2:
-        * in_channels = 16
-        * out_channels = 32
-        * kernel_size = 3 x 3
-        # Number of parameters conv2 = 3 x 3 x 16 x 32 = 4608
-        # Original input for next layer: B x 32 x 112 x 112
-        # Input after MaxPool2d: B x 32 x 56 x 56
-    - Convolutional layer 3:
-        * in_channels = 32
-        * out_channels = 64
-        * kernel_size = 3 x 3
-        # Number of parameters conv2 = 3 x 3 x 32 x 64 = 18432
-        # Original input for next layer: B x 64 x 56 x 56
-        # Input after MaxPool2d: B x 64 x 28 x 28
-    ###########################################################################
-        
-    ###########################################################################
-    ###############
-    # Classifier: #
-    ###############
-    - Fully conected layer 1:
 
-
-
-    ###########################################################################
-    """
-
-    def __init__(self, in_channels=3, n_labels=3):
+    def __init__(self, in_channels=3, n_labels=8):
         super(CNN, self).__init__()
         out_c = 16
-        self.conv1 = nn.Conv2d(in_channels=in_channels, out_channels=out_c, kernel_size=3, padding=1)
-        self.bn1 = nn.BatchNorm2d(out_c)
 
-        self.conv2 = nn.Conv2d(in_channels=out_c, out_channels=out_c*2, kernel_size=3, padding=1)
-        self.bn2 = nn.BatchNorm2d(out_c*2)
+        self.features = nn.Sequential(
+            # Convolutional Layer 1
+            nn.Conv2d(in_channels=in_channels, out_channels=out_c, kernel_size=3, padding=1),
+            nn.BatchNorm2d(out_c),
+            nn.ReLU(inplace=True),
 
-        self.conv3 = nn.Conv2d(in_channels=out_c*2, out_channels=out_c*4, kernel_size=3, padding=1)
-        self.bn3 = nn.BatchNorm2d(out_c*4)
+            # Convolutional Layer 2
+            nn.Conv2d(in_channels=out_c, out_channels=out_c*2, kernel_size=3, padding=1),
+            nn.BatchNorm2d(out_c*2),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2, 2),
 
-        self.pool = nn.MaxPool2d(2, 2)
+            # Convolutional Layer 3
+            nn.Conv2d(in_channels=out_c*2, out_channels=out_c*4, kernel_size=3, padding=1),
+            nn.BatchNorm2d(out_c*4),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2, 2),
 
-        self.fc1 = nn.Linear(out_c*4 * 28 * 28, 128)
-        self.dropout = nn.Dropout(0.5)
-        self.fc2 = nn.Linear(128, n_labels)
+            # Convolutional Layer 4
+            nn.Conv2d(in_channels=out_c*4, out_channels=out_c*8, kernel_size=3, padding=1),
+            nn.BatchNorm2d(out_c*8),
+            nn.ReLU(inplace=True),
+            
+            # Convolutional Layer 5
+            nn.Conv2d(in_channels=out_c*8, out_channels=out_c*16, kernel_size=3, padding=1),
+            nn.BatchNorm2d(out_c*16),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2, 2)
+        )
+
+        self.gap = nn.AdaptiveAvgPool2d((1, 1)) # (256,28,28)->(256,1,1)
+
+        self.classifier = nn.Sequential(
+            nn.Linear(out_c*16, 512),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.5),
+            nn.Linear(512, n_labels)
+        )
 
     def forward(self, x):
-        x = self.pool(F.relu(self.bn1(self.conv1(x))))
-        x = self.pool(F.relu(self.bn2(self.conv2(x))))
-        x = self.pool(F.relu(self.bn3(self.conv3(x))))
-
-        x = x.view(x.size(0), -1)
-
-        x = F.relu(self.fc1(x))
-        x = self.dropout(x)
-        return self.fc2(x)
+        x = self.features(x)
+        x = self.gap(x)
+        x = torch.flatten(x, 1)
+        x = self.classifier(x)
+        return x
 
 
 # Cache the data
@@ -181,7 +156,7 @@ def load_data(partition_id: int, batch_size: int):
 
 all_client_data = None
 
-def load_cifar_data(partition_id: int, batch_size: int):
+def load_bloodmnist_data(partition_id: int, batch_size: int):
     global all_client_data
     
     # Load the pickle file with the data that has been split by generate-data
