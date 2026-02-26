@@ -29,10 +29,12 @@ def main():
     # Data arguments
     parser.add_argument("--train",type=float, default=0.8,
                         help="Controls the proportion of train data.")
-    parser.add_argument("--split_method", type=str, choices=["iid","non-iid","orig-dist"],
+    parser.add_argument("--split_method", type=str, choices=["iid","non-iid","orig-dist","qbli"],
                         default="iid",help="Choose how the data will be split across clients.")
     parser.add_argument("--alpha",type=float, default=0.5,
                         help="Controls the heterogeneity for splitting. Only useful if split_method is non-iid")
+    parser.add_argument("--C",type=float, default=1,
+                        help="Number of labels to assign to each client. Only useful if split_method is qbli (quantity based label imbalance)")
 
     # Paths
     parser.add_argument("--data_path",type=str,default="./data/raw")

@@ -97,9 +97,9 @@ def main(grid: Grid, context: Context) -> None:
         common_params = {
             "fraction_evaluate": fraction_evaluate,
             "fraction_train": fraction_train,
-            "min_train_nodes": 6,
-            "min_evaluate_nodes": 8,
-            "min_available_nodes": 8,
+            "min_train_nodes": 6, 
+            "min_evaluate_nodes": 8,  
+            "min_available_nodes": 8, 
         }
 
         # Load global model
@@ -199,7 +199,6 @@ def plot_results(result):
     ax2.plot(rounds, train_loss, label="Train loss", color='red')
     ax2.set_title("Aggregated loss over rounds", fontsize=14)
     ax2.set_ylabel("Loss")
-    ax2.set_ylim(0, 1.05)
     ax2.grid(True, alpha=0.3)
     ax2.legend()
 

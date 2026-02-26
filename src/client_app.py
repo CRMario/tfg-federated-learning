@@ -64,9 +64,9 @@ def train(msg: Message, context: Context):
     batch_size = context.run_config["batch-size"]
 
     if dataset == "bloodmnist":
-        trainloader, _, _ = load_bloodmnist_data(partition_id, batch_size)
+        trainloader, _ = load_bloodmnist_data(partition_id, batch_size)
     else:
-        trainloader, _, _ = load_data(partition_id, batch_size)
+        trainloader, _ = load_data(partition_id, batch_size)
 
     extra = {
         # SCAFFOLD:
@@ -127,6 +127,7 @@ def train(msg: Message, context: Context):
 def evaluate(msg: Message, context: Context):
 
     config = load_config("./data/processed/config.json")
+    mappings = load_config("./data/processed/label_mappings.json")
     dataset = config["dataset"]
 
     strat = context.run_config.get("strategy","fedavg")
@@ -143,16 +144,16 @@ def evaluate(msg: Message, context: Context):
     batch_size = context.run_config["batch-size"]
 
     if dataset == "bloodmnist":
-        _, valloader, labels = load_bloodmnist_data(partition_id, batch_size)
+        _, valloader = load_bloodmnist_data(partition_id, batch_size)
     else:
-        _, valloader, labels = load_data(partition_id, batch_size)
+        _, valloader = load_data(partition_id, batch_size)
 
     # Call the evaluation function
     eval_loss, eval_acc, confusion_matrix, precision = test_fn(
         model,
         valloader,
         device,
-        labels,
+        [int(label) for label in mappings["id_to_label"].keys()],
     )
 
 

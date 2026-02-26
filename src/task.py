@@ -13,12 +13,13 @@ from torch.utils.data import DataLoader, Dataset
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose, Normalize, ToTensor, Resize
 from sklearn.metrics import confusion_matrix, precision_score
+from utils.config import load_config
 
 
 class ImageDataset(Dataset):
 
-    transforms = Compose([Resize((224,224)), ToTensor(), 
-                                  Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+    transforms = Compose([ToTensor(), 
+                        Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
     
     def __init__(self, images, labels):
         self.images = images
@@ -74,16 +75,19 @@ class CNN(nn.Module):
 
         self.pool = nn.MaxPool2d(2, 2)
 
-        self.fc1 = nn.Linear(out_c*4 * 28 * 28, 128)
+        self.global_pool = nn.AdaptiveAvgPool2d((2,2))
+
+        self.fc1 = nn.Linear(out_c*4 * 2 * 2, 128)
         self.dropout = nn.Dropout(0.5)
         self.fc2 = nn.Linear(128, n_labels)
 
     def forward(self, x):
         x = self.pool(F.relu(self.bn1(self.conv1(x))))
         x = self.pool(F.relu(self.bn2(self.conv2(x))))
-        x = self.pool(F.relu(self.bn3(self.conv3(x))))
+        x = F.relu(self.bn3(self.conv3(x)))
 
-        x = x.view(x.size(0), -1)
+        x = self.global_pool(x)
+        x = torch.flatten(x,1)
 
         x = F.relu(self.fc1(x))
         x = self.dropout(x)
@@ -119,8 +123,6 @@ def load_data(partition_id: int, batch_size: int):
     train_imgs, train_labels = split(client_data["train"])
     test_imgs, test_labels = split(client_data["test"])
 
-    unique_labels = sorted(list(set(train_labels)))
-
     # Create the local dataset after processing the images
     train_ds = ImageDataset(train_imgs, train_labels)
     test_ds = ImageDataset(test_imgs, test_labels)
@@ -131,7 +133,7 @@ def load_data(partition_id: int, batch_size: int):
 
     gc.collect()
 
-    return trainloader, testloader, unique_labels
+    return trainloader, testloader
 
 all_client_data = None
 
@@ -157,14 +159,12 @@ def load_bloodmnist_data(partition_id: int, batch_size: int):
     train_ds = ImageDataset(train_imgs, train_labels)
     test_ds = ImageDataset(test_imgs, test_labels)
 
-    unique_labels = sorted(list(set(train_labels)))
-
     trainloader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
     testloader = DataLoader(test_ds, batch_size=batch_size)
 
     gc.collect()
 
-    return trainloader, testloader, unique_labels
+    return trainloader, testloader
 
 
 def train_fedavg(model, trainloader, epochs, lr, device, **kwargs):
@@ -289,7 +289,6 @@ def train_scaffold(global_c, local_c, model, trainloader, epochs, lr, device, **
     return avg_trainloss, training_accuracy, w_diff, c_diff, ArrayRecord(array_dict={k: Array(v) for k,v in next_c.items()})
 
 def train_fedprox(proximal_mu, inexact_threshold, model, trainloader, epochs, lr, device, **kwargs):
-   
     global_model_params = [parameter.clone() for parameter in model.parameters()]
     model.to(device)
     # Use SGD with a CrossEntropyLoss function
@@ -304,8 +303,8 @@ def train_fedprox(proximal_mu, inexact_threshold, model, trainloader, epochs, lr
     init_loss.backward()
 
     # Get the initial norm
-    with torch.no_grad():
-        initial_grad_norm = torch.cat([p.grad.flatten() for p in model.parameters()]).norm(2)
+    #with torch.no_grad():
+    #    initial_grad_norm = torch.cat([p.grad.flatten() for p in model.parameters()]).norm(2)
 
     optimizer.zero_grad()
 
@@ -325,9 +324,9 @@ def train_fedprox(proximal_mu, inexact_threshold, model, trainloader, epochs, lr
             for local_weight, global_weight in zip(model.parameters(), global_model_params):
                 diff += (local_weight - global_weight).norm(2)**2
             proximal_term = (proximal_mu / 2) * diff
-            loss = loss + proximal_term
+            modified_loss = loss + proximal_term
 
-            loss.backward()
+            modified_loss.backward()
             optimizer.step()
             running_loss += loss.item()
 
@@ -335,14 +334,15 @@ def train_fedprox(proximal_mu, inexact_threshold, model, trainloader, epochs, lr
             correct += (predicted == labels).sum().item()
             total += len(labels)
         
-        with torch.no_grad():
-            current_grad_norm = torch.cat([p.grad.flatten() for p in model.parameters()]).norm(2)
+        #with torch.no_grad():
+        #    current_grad_norm = torch.cat([p.grad.flatten() for p in model.parameters()]).norm(2)
 
-        if current_grad_norm <= initial_grad_norm * inexact_threshold:
-            avg_trainloss = running_loss / (current_epoch * len(trainloader))
-            training_accuracy = correct / total
-            return avg_trainloss, training_accuracy, {}, {}, {}
-
+        
+        #if current_grad_norm <= initial_grad_norm * inexact_threshold:
+        #    avg_trainloss = running_loss / (current_epoch * len(trainloader))
+        #    training_accuracy = correct / total
+        #    return avg_trainloss, training_accuracy, {}, {}, {}
+        # TODO: fix the "stragglers" part of the algorithm. 
         current_epoch += 1
         
     avg_trainloss = running_loss / (epochs * len(trainloader))

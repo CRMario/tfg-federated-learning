@@ -1,65 +1,59 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose, Normalize, ToTensor
 from medmnist import BloodMNIST
 from sklearn.metrics import confusion_matrix, classification_report
 
 class CNN(nn.Module):
+
     def __init__(self, in_channels=3, n_labels=8):
         super(CNN, self).__init__()
-        
-        self.layer1 = nn.Sequential(
-            nn.Conv2d(in_channels, 32, kernel_size=3),
-            nn.BatchNorm2d(32),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(2)
-        )
-        
-        self.layer2 = nn.Sequential(
-            nn.Conv2d(32, 64, kernel_size=3),
-            nn.BatchNorm2d(64),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(2)
-        )
-        
-        self.layer3 = nn.Sequential(
-            nn.Conv2d(64, 128, kernel_size=3),
-            nn.BatchNorm2d(128),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(2)
-        )
+        out_c = 16
+        self.conv1 = nn.Conv2d(in_channels=in_channels, out_channels=out_c, kernel_size=3, padding=1)
+        self.bn1 = nn.BatchNorm2d(out_c)
 
-        self.gap = nn.AdaptiveAvgPool2d((1, 1))
-        
-        self.classifier = nn.Sequential(
-            nn.Linear(128, 64),
-            nn.ReLU(inplace=True),
-            nn.Dropout(0.3),
-            nn.Linear(64, n_labels)
-        )
+        self.conv2 = nn.Conv2d(in_channels=out_c, out_channels=out_c*2, kernel_size=3, padding=1)
+        self.bn2 = nn.BatchNorm2d(out_c*2)
+
+        self.conv3 = nn.Conv2d(in_channels=out_c*2, out_channels=out_c*4, kernel_size=3, padding=1)
+        self.bn3 = nn.BatchNorm2d(out_c*4)
+
+        self.pool = nn.MaxPool2d(2, 2)
+
+        self.global_pool = nn.AdaptiveAvgPool2d((2,2))
+
+        self.fc1 = nn.Linear(out_c*4 * 2 * 2, 128)
+        self.dropout = nn.Dropout(0.5)
+        self.fc2 = nn.Linear(128, n_labels)
 
     def forward(self, x):
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.gap(x)
-        x = torch.flatten(x, 1)
-        return self.classifier(x)
+        x = self.pool(F.relu(self.bn1(self.conv1(x))))
+        x = self.pool(F.relu(self.bn2(self.conv2(x))))
+        x = F.relu(self.bn3(self.conv3(x)))
+
+        x = self.global_pool(x)
+        x = torch.flatten(x,1)
+
+        x = F.relu(self.fc1(x))
+        x = self.dropout(x)
+        return self.fc2(x)
 
 
 def main():
 
-    transformers = Compose([ToTensor(),Normalize(mean=[0.5], std=[0.5])])
+    transforms = Compose([ToTensor(), 
+                        Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
-    train_set = BloodMNIST(split='train',root='./data/bloodmnist', download=True, transform=transformers)
+    train_set = BloodMNIST(split='train',root='./data/bloodmnist', download=True, transform=transforms)
     train_loader = DataLoader(dataset=train_set, batch_size=128, shuffle=True)
-    validation_set = BloodMNIST(split='val',root='./data/bloodmnist', download=True, transform=transformers)
+    validation_set = BloodMNIST(split='val',root='./data/bloodmnist', download=True, transform=transforms)
     val_loader = DataLoader(dataset=validation_set, batch_size=128, shuffle=True)
-    test_set = BloodMNIST(split='test',root='./data/bloodmnist', download=True, transform=transformers)
+    test_set = BloodMNIST(split='test',root='./data/bloodmnist', download=True, transform=transforms)
     test_loader = DataLoader(dataset=test_set, batch_size=128, shuffle=True)
 
-    model = CNN(n_labels=8)
+    model = CNN()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
