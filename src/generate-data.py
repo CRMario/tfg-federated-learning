@@ -33,7 +33,7 @@ def main():
                         default="iid",help="Choose how the data will be split across clients.")
     parser.add_argument("--alpha",type=float, default=0.5,
                         help="Controls the heterogeneity for splitting. Only useful if split_method is non-iid")
-    parser.add_argument("--C",type=float, default=1,
+    parser.add_argument("--C",type=int, default=1,
                         help="Number of labels to assign to each client. Only useful if split_method is qbli (quantity based label imbalance)")
 
     # Paths

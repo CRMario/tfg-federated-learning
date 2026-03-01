@@ -73,6 +73,7 @@ def split_bloodmnist_by_client(train_set, test_set):
     n_clients = config["n_clients"]
     client_names = [f"client_{i}" for i in range(n_clients)]
     split_method = config["split_method"]
+    c = config["C"] 
     alpha = config["alpha"]
     subset = config["subset"]
     balanced = (split_method == "iid")
@@ -111,28 +112,75 @@ def split_bloodmnist_by_client(train_set, test_set):
     client_train_ids = [[] for _ in range(n_clients)]
     client_test_ids = [[] for _ in range(n_clients)]
 
-    # bloodmnist has 8 classes
-    for label in range(8):
-        train_ids_of_label = np.where(train_labels == label)[0]
-        test_ids_of_label = np.where(test_labels == label)[0]
-        np.random.shuffle(train_ids_of_label)
-        np.random.shuffle(test_ids_of_label)
-        proportions = (np.random.dirichlet([alpha] * n_clients) if split_method == "non-iid" else np.full(n_clients, 1.0 / n_clients))
-        # convert to image count. each position is the count assigned to each client
-        train_counts = (proportions * len(train_ids_of_label)).astype(int)
-        test_counts = (proportions * len(test_ids_of_label)).astype(int)
+    if split_method == "qbli": # pathological quantity based label imbalance controled by C
+        # implementation from https://doi.org/10.1109/ICDE53745.2022.00077
 
-        train_pos = 0
-        test_pos = 0
+        # "We first randomly assign k different label IDs to each party" (in this case c, #C = k)
+        # start by assigning different id labels to each client but once the pool runs out of labels
+        # we have to refill it. For example if we have 10 clients, 10 labels and we set c = 2, we can
+        # only have 5 clients with totally different labels before we have to refill the pool and repeat labels
+        # assign C classes to each clieant
+        pool = [i for i in range(8)]
+        np.random.shuffle(pool)
+        client_classes = {i: [] for i in range(n_clients)}
         for i in range(n_clients):
-            n_train_samples = train_counts[i]
-            n_test_samples = test_counts[i]
-            train_delim = train_pos + n_train_samples
-            test_delim = test_pos + n_test_samples
-            client_train_ids[i].extend(train_ids_of_label[train_pos:train_delim])
-            client_test_ids[i].extend(test_ids_of_label[test_pos:test_delim])
-            train_pos += n_train_samples
-            test_pos += n_test_samples
+            # if the pool runs out of enough labels to draw refill it
+            if len(pool) < c:
+                refill_pool = [i for i in range(8)]
+                np.random.shuffle(refill_pool)
+                pool.extend(refill_pool) # use extend because we still want to assign the remaining labels
+            # take the first c labels of the pool 
+            chosen = [pool.pop(0) for _ in range(c)]
+            client_classes[i] = chosen
+
+        # "Then, for the samples of each label, we randomly and equally divide them into the parties which own the label."
+        # find the clients that own the label
+        label_to_clients = {l: [] for l in range(8)}
+        for client, labels in client_classes.items():
+            for l in labels:
+                label_to_clients[l].append(client)
+        # divide the labels between the parties that own them
+        for label in range(8):
+            # shuffle the label indices
+            train_ids_of_label = np.where(train_labels == label)[0]
+            test_ids_of_label = np.where(test_labels == label)[0]
+
+            np.random.shuffle(train_ids_of_label)
+            np.random.shuffle(test_ids_of_label)
+
+            # get the owners of the label
+            label_owners = label_to_clients[label]
+            n_owners = len(label_owners)
+
+            if n_owners > 0:
+                train_splits = np.array_split(train_ids_of_label, n_owners)
+                test_splits = np.array_split(test_ids_of_label, n_owners)
+                for i, owner in enumerate(label_owners):
+                    client_train_ids[owner].extend(train_splits[i])
+                    client_test_ids[owner].extend(test_splits[i])
+
+    else: # non-iid and iid
+        for label in range(8):
+            train_ids_of_label = np.where(train_labels == label)[0]
+            test_ids_of_label = np.where(test_labels == label)[0]
+            np.random.shuffle(train_ids_of_label)
+            np.random.shuffle(test_ids_of_label)
+            proportions = (np.random.dirichlet([alpha] * n_clients) if split_method == "non-iid" else np.full(n_clients, 1.0 / n_clients))
+            # convert to image count. each position is the count assigned to each client
+            train_counts = (proportions * len(train_ids_of_label)).astype(int)
+            test_counts = (proportions * len(test_ids_of_label)).astype(int)
+
+            train_pos = 0
+            test_pos = 0
+            for i in range(n_clients):
+                n_train_samples = train_counts[i]
+                n_test_samples = test_counts[i]
+                train_delim = train_pos + n_train_samples
+                test_delim = test_pos + n_test_samples
+                client_train_ids[i].extend(train_ids_of_label[train_pos:train_delim])
+                client_test_ids[i].extend(test_ids_of_label[test_pos:test_delim])
+                train_pos += n_train_samples
+                test_pos += n_test_samples
 
     # now we have the ids per client so we can assign them
     for i, name in enumerate(client_names):
