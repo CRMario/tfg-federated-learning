@@ -1,4 +1,3 @@
-[tool.flwr.app.config]
 strategy = "fedprox"
 num-server-rounds = 100
 fraction-train = 1.0
