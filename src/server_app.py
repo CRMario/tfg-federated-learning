@@ -1,5 +1,6 @@
 import torch
 import matplotlib
+import json
 matplotlib.use('Agg')
 import matplotlib.pyplot as ppt
 import os
@@ -83,7 +84,11 @@ def main(grid: Grid, context: Context) -> None:
 
     with mlflow.start_run(run_name=current_run_name):
 
+        with open("data/processed/config.json", "r") as f:
+            partition_config = json.load(f)
+
         mlflow.log_params(config)
+        mlflow.log_params(partition_config)
         mlflow.log_param("strategy", strat)
         mlflow.log_artifact("data/processed/config.json", artifact_path="configs")
         mlflow.log_artifact("data/processed/label_mappings.json", artifact_path="mappings")

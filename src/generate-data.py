@@ -11,7 +11,6 @@ from src.data_preparation.split_data import split_data_by_client, split_bloodmni
 from src.config.constants import *
 from medmnist import BloodMNIST
 
-# Run as python -m src.generate-data
 def main():
     parser = argparse.ArgumentParser(description="A parser for dataset splitting.")
 
@@ -31,10 +30,10 @@ def main():
                         help="Controls the proportion of train data.")
     parser.add_argument("--split_method", type=str, choices=["iid","non-iid","orig-dist","qbli"],
                         default="iid",help="Choose how the data will be split across clients.")
-    parser.add_argument("--alpha",type=float, default=0.5,
-                        help="Controls the heterogeneity for splitting. Only useful if split_method is non-iid")
-    parser.add_argument("--C",type=int, default=1,
-                        help="Number of labels to assign to each client. Only useful if split_method is qbli (quantity based label imbalance)")
+    parser.add_argument("--alpha",type=float, default=None,
+                        help="Controls the heterogeneity for splitting. Must be specified and is only useful if split_method is non-iid")
+    parser.add_argument("--C",type=int, default=None,
+                        help="Number of labels to assign to each client. Must be specified and is only useful if split_method is qbli (quantity based label imbalance)")
 
     # Paths
     parser.add_argument("--data_path",type=str,default="./data/raw")
