@@ -83,7 +83,7 @@ def main():
     images = []
     labels = []
     # Load the image paths: 80% train 20% test
-    for label, image_list in load_images(DATA_PATH).items():
+    for label, image_list in load_images("data/raw").items():
         images.extend(image_list)
         labels.extend([label]*len(image_list))
 

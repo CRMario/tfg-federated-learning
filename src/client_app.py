@@ -4,13 +4,13 @@ import numpy as np
 from flwr.app import ArrayRecord, Context, Message, MetricRecord, RecordDict, Array
 from flwr.clientapp import ClientApp
 
-from src.task import CNN, load_data, load_bloodmnist_data
+from src.task import load_data
 from src.task import test as test_fn
 from src.task import train_fedavg as train_fn_avg
 from src.task import train_scaffold as train_fn_scaffold
 from src.task import train_fedprox as train_fn_prox
-from src.task import aggregate_malicious_vector
 from utils.config import load_config
+from src.model import MODEL, CNN_Local
 
 TRAIN_FN = {
     "fedavg": lambda extra, common: train_fn_avg(
@@ -52,7 +52,7 @@ def train(msg: Message, context: Context):
             {k: Array(np.zeros_like(v.numpy())) for k, v in msg.content["arrays"].items()})
 
     # Load the CNN
-    model = CNN()
+    model = MODEL.get(dataset,CNN_Local)()
     # Receive the global aggregated weights 
     model.load_state_dict(msg.content["arrays"].to_torch_state_dict())
     # Move to gpu if possible
@@ -63,10 +63,7 @@ def train(msg: Message, context: Context):
     partition_id = context.node_config["partition-id"]
     batch_size = context.run_config["batch-size"]
 
-    if dataset == "bloodmnist":
-        trainloader, _ = load_bloodmnist_data(partition_id, batch_size)
-    else:
-        trainloader, _ = load_data(partition_id, batch_size)
+    trainloader, _ = load_data(partition_id, batch_size)
 
     extra = {
         # SCAFFOLD:
@@ -108,7 +105,7 @@ def train(msg: Message, context: Context):
         # for now use CNN().state_dict() which generates random parameters to check
         # if Krum can detect this in the server
         print("The malicious actor has been chosen for training")
-        model_record = ArrayRecord(CNN().state_dict())
+        model_record = ArrayRecord(MODEL.get(dataset,"local")().state_dict()) #random vector of parameters
         content = RecordDict({"arrays": model_record, "metrics": metric_record})
     else:
         model_record = ArrayRecord(model.state_dict())
@@ -132,7 +129,7 @@ def evaluate(msg: Message, context: Context):
 
     strat = context.run_config.get("strategy","fedavg")
     # Load the model
-    model = CNN()
+    model = MODEL.get(dataset,"local")()
     # Get the aggregated globla weights
     model.load_state_dict(msg.content["arrays"].to_torch_state_dict())
     # Move to GPU if possible
@@ -143,10 +140,7 @@ def evaluate(msg: Message, context: Context):
     partition_id = context.node_config["partition-id"]
     batch_size = context.run_config["batch-size"]
 
-    if dataset == "bloodmnist":
-        _, valloader = load_bloodmnist_data(partition_id, batch_size)
-    else:
-        _, valloader = load_data(partition_id, batch_size)
+    _, valloader = load_data(partition_id, batch_size)
 
     # Call the evaluation function
     eval_loss, eval_acc, confusion_matrix, precision = test_fn(
@@ -155,7 +149,6 @@ def evaluate(msg: Message, context: Context):
         device,
         [int(label) for label in mappings["id_to_label"].keys()],
     )
-
 
     # Construct and return reply Message with metrics after evaluation
     metrics = {

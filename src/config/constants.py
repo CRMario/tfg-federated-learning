@@ -1,1 +1,1 @@
-DATA_PATH = "data/raw"
+EXTENSIONS = {".jpg", ".jpeg", ".png"}

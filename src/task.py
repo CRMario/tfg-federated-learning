@@ -1,143 +1,17 @@
-import logging
 import pickle
 import copy
 import torch
 import gc
-import json
-import numpy as np
-from PIL import Image
-import torch.nn as nn
-import torch.nn.functional as F
 from flwr.app import Array, ArrayRecord
-from torch.utils.data import DataLoader, Dataset
+from src.image_dataset import IMAGE_DATASET, ImageDatasetLocal
 from torch.utils.data import DataLoader
-from torchvision.transforms import Compose, Normalize, ToTensor, Resize
 from sklearn.metrics import confusion_matrix, precision_score
 from utils.config import load_config
 
-
-class ImageDataset(Dataset):
-
-    transforms = Compose([ToTensor(), 
-                        Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-    
-    def __init__(self, images, labels):
-        self.images = images
-        self.labels = labels
-
-        with open('./data/processed/label_mappings.json', "r") as f:
-            label_mappings = json.load(f)
-
-        self.id_label = label_mappings["id_to_label"]
-        self.label_id = label_mappings["label_to_id"]
-
-    def __len__(self):
-        return len(self.images)
-
-    def __getitem__(self, id):
-        image_path = self.images[id]
-        # only load the image when necessary (when we get the image)
-        if isinstance(image_path, str):
-            image = Image.open(image_path).convert("RGB")
-        else: #bloodmnist array
-            image = Image.fromarray(image_path)
-        image = self._apply_transforms(image)
-
-        label = self.labels[id]
-
-        if isinstance(label, str):
-            id_for_label = self.label_id[label]
-        else:
-            id_for_label = label
-
-        label = torch.tensor(id_for_label, dtype=torch.long)
-        return {"img": image, "label": label}
-    
-    def _apply_transforms(self,image):
-        return self.transforms(image)
-    
-    def get_label_name_map(self):
-        return self.id_label
-    
-class CNN(nn.Module):
-
-    def __init__(self, in_channels=3, n_labels=8):
-        super(CNN, self).__init__()
-        out_c = 16
-        self.conv1 = nn.Conv2d(in_channels=in_channels, out_channels=out_c, kernel_size=3, padding=1)
-        self.bn1 = nn.BatchNorm2d(out_c)
-
-        self.conv2 = nn.Conv2d(in_channels=out_c, out_channels=out_c*2, kernel_size=3, padding=1)
-        self.bn2 = nn.BatchNorm2d(out_c*2)
-
-        self.conv3 = nn.Conv2d(in_channels=out_c*2, out_channels=out_c*4, kernel_size=3, padding=1)
-        self.bn3 = nn.BatchNorm2d(out_c*4)
-
-        self.pool = nn.MaxPool2d(2, 2)
-
-        self.global_pool = nn.AdaptiveAvgPool2d((2,2))
-
-        self.fc1 = nn.Linear(out_c*4 * 2 * 2, 128)
-        self.dropout = nn.Dropout(0.5)
-        self.fc2 = nn.Linear(128, n_labels)
-
-    def forward(self, x):
-        x = self.pool(F.relu(self.bn1(self.conv1(x))))
-        x = self.pool(F.relu(self.bn2(self.conv2(x))))
-        x = F.relu(self.bn3(self.conv3(x)))
-
-        x = self.global_pool(x)
-        x = torch.flatten(x,1)
-
-        x = F.relu(self.fc1(x))
-        x = self.dropout(x)
-        return self.fc2(x)
-
-
 # Cache the data
-all_hospital_data = None
-
-def load_data(partition_id: int, batch_size: int):
-    global all_hospital_data
-    
-    # Load the pickle file with the data that has been split by generate-data
-    # beforehand.
-    if all_hospital_data is None:
-        with open("./data/processed/splits.pkl", "rb") as f:
-            all_hospital_data = pickle.load(f)
-
-    # Associate the partition_id with the corresponding hospital created with
-    # the same id.
-    hospital_name = f"hospital_{partition_id}"
-    client_data = all_hospital_data[hospital_name]
-
-    # Get a list of the images and labels
-    def split(split_dict):
-        images, labels = [], []
-        for label, img_list in split_dict.items():
-            images.extend(img_list)
-            labels.extend([label] * len(img_list))
-        return images, labels
-
-    # Get the train and test images and labels
-    train_imgs, train_labels = split(client_data["train"])
-    test_imgs, test_labels = split(client_data["test"])
-
-    # Create the local dataset after processing the images
-    train_ds = ImageDataset(train_imgs, train_labels)
-    test_ds = ImageDataset(test_imgs, test_labels)
-
-    # Create dataloaders
-    trainloader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
-    testloader = DataLoader(test_ds, batch_size=batch_size)
-
-    gc.collect()
-
-    return trainloader, testloader
-
 all_client_data = None
 
-def load_bloodmnist_data(partition_id: int, batch_size: int):
+def load_data(partition_id: int, batch_size: int):
     global all_client_data
     
     # Load the pickle file with the data that has been split by generate-data
@@ -156,8 +30,12 @@ def load_bloodmnist_data(partition_id: int, batch_size: int):
     test_imgs = client_data["test"]["x"]
     test_labels = client_data["test"]["y"]
 
-    train_ds = ImageDataset(train_imgs, train_labels)
-    test_ds = ImageDataset(test_imgs, test_labels)
+    dataset = load_config("./data/processed/config.json")["dataset"]
+    image_dataset_builder = IMAGE_DATASET.get(dataset,ImageDatasetLocal)
+
+    # Create the local dataset after processing the images
+    train_ds = image_dataset_builder(train_imgs, train_labels)
+    test_ds = image_dataset_builder(test_imgs, test_labels)
 
     trainloader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
     testloader = DataLoader(test_ds, batch_size=batch_size)
@@ -165,7 +43,6 @@ def load_bloodmnist_data(partition_id: int, batch_size: int):
     gc.collect()
 
     return trainloader, testloader
-
 
 def train_fedavg(model, trainloader, epochs, lr, device, **kwargs):
     model.to(device)

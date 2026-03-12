@@ -13,12 +13,11 @@ from flwr.serverapp.strategy import FedAvg, FedProx
 from flwr.serverapp.strategy.fedavg import FedAvg
 from src.strategies.scaffold import SCAFFOLD
 from src.strategies.attacks.malicious_client import MaliciousActorIIDDetector
-from src.strategies.attacks.malicious_server_existing_inference import MaliciousServerExistingInferenceAttack
-from src.strategies.attacks.malicious_server_metric_based import MaliciousServerMetricBasedAttack
 from src.strategies.fedavg_precision import PrecisionWeightedFedAvg
 from utils.utils import aggregate_metricrecords
+from utils.config import load_config
 
-from src.task import CNN
+from src.model import MODEL, CNN_Local
 
 STRATEGY = {
     "fedavg": lambda configuration, initial_params, common: FedAvg(
@@ -44,21 +43,6 @@ STRATEGY = {
         evaluate_metrics_aggr_fn=aggregate_metricrecords,
         **common
     ),
-    "malicious_server_existing_inference": lambda configuration, initial_params, common:
-                                            MaliciousServerExistingInferenceAttack(
-        target_img=configuration.get("target-image",ImportError),
-        null_img=configuration.get("null-image",ImportError),
-        lr=configuration.get("lr",0.001),
-        evaluate_metrics_aggr_fn=aggregate_metricrecords,
-        **common                  
-    ),
-    "malicious_server_metric_based": lambda configuration, initial_params, common:
-                                            MaliciousServerMetricBasedAttack(
-        target_img=configuration.get("target-image",ImportError),
-        null_img=configuration.get("null-image",ImportError),
-        num_rounds=configuration.get("num-server-rounds",ImportError),                                
-        **common
-    )
 }
 
 # Initialize the server application
@@ -84,8 +68,7 @@ def main(grid: Grid, context: Context) -> None:
 
     with mlflow.start_run(run_name=current_run_name):
 
-        with open("data/processed/config.json", "r") as f:
-            partition_config = json.load(f)
+        partition_config = load_config("./data/processed/config.json")
 
         mlflow.log_params(config)
         mlflow.log_params(partition_config)
@@ -108,7 +91,8 @@ def main(grid: Grid, context: Context) -> None:
         }
 
         # Load global model
-        global_model = CNN()
+        dataset = partition_config["dataset"]
+        global_model = MODEL.get(dataset,CNN_Local)()
         # Get the initial weights. They are randomly initialized.
         arrays = ArrayRecord(global_model.state_dict())
 
