@@ -105,6 +105,10 @@ def load_mnist(config):
         "id_to_label": {i: label for i, label in enumerate(train_set.classes)}
     }
 
-    splits = split_data_by_client(train_set, test_set, config)
+    splits = split_data_by_client(train_data=np.array(train_set.data),
+                                  train_labels=train_set.targets,
+                                  test_data=np.array(test_set.data),
+                                  test_labels=test_set.targets,
+                                  config=config)
         
     return splits, label_mappings

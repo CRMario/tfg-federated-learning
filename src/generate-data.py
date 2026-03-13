@@ -66,7 +66,7 @@ def main():
 
     #Dump the hospital data in a pickle file
     with open(pickle_file, "wb") as f:
-        pickle.dump(splits, f)
+        pickle.dump(splits, f, protocol=pickle.HIGHEST_PROTOCOL)
 
 if __name__ == "__main__":
     main()
