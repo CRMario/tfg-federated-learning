@@ -31,7 +31,7 @@ def main():
     parser.add_argument("--train",type=float, default=0.8,
                         help="Controls the proportion of train data.")
     parser.add_argument("--split_method", type=str, choices=["uniform","orig-dist","dirichlet","qbli"],
-                        default="iid",help="Choose how the data will be split across clients.")
+                        default="orig-dist",help="Choose how the data will be split across clients.")
     parser.add_argument("--alpha",type=float, default=None,
                         help="Controls the heterogeneity for splitting. Must be specified and is only useful if split_method is dirichlet")
     parser.add_argument("--C",type=int, default=None,

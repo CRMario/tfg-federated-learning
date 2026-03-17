@@ -1,4 +1,5 @@
 import torch
+import time
 import gc
 import numpy as np
 from flwr.app import ArrayRecord, Context, Message, MetricRecord, RecordDict, Array
@@ -83,8 +84,12 @@ def train(msg: Message, context: Context):
     }
 
     # Call the training function
+    start_time = time.perf_counter()
     train_fn= TRAIN_FN.get(strat,TRAIN_FN["fedavg"])
     train_loss, train_acc, w_diff, c_diff, new_c = train_fn(extra=extra,common=common_parameters)
+    end_time = time.perf_counter()
+    train_duration = end_time - start_time
+    print(train_duration)
 
     metrics = {
         "train_loss": train_loss,

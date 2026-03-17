@@ -84,7 +84,6 @@ class CNN_MNIST(nn.Module):
         # 2x2 max pooling
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
         
-        # 
         self.fc1 = nn.Linear(16 * 10 * 10, 120)
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, num_classes)
