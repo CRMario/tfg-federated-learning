@@ -58,7 +58,8 @@ def main():
         lr=0.001,
         batch_size=128,
         max_epochs=50,
-        iterator_train__num_workers=8
+        iterator_train__num_workers=8,
+        device='cuda' if torch.cuda.is_available() else 'cpu'
     )
 
     # Choose the parameters to be optimized in the GridSearch
