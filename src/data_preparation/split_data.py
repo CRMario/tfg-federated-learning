@@ -2,7 +2,8 @@ import random as rand
 import numpy as np
 from utils.config import *
 
-def split_data_by_client(train_data, train_labels, test_data, test_labels, config):
+def split_data_by_client(train_data, train_labels, test_data, test_labels, config, seed):
+    np.random.seed(seed)
     n_clients = config["n_clients"]
     client_names = [f"client_{i}" for i in range(n_clients)]
     split_method = config["split_method"]

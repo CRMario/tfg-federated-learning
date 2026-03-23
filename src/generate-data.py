@@ -54,13 +54,12 @@ def main():
 
     config = load_config("./data/processed/config.json")
 
-    splits, label_mappings = LOAD_DATASET.get(args.dataset,load_local)(config)
+    splits, label_mappings = LOAD_DATASET.get(args.dataset,load_local)(config, args.seed)
 
     with open(os.path.join(args.save_path, 'label_mappings.json'), 'w') as f:
         json.dump(label_mappings, f, indent=4)
 
     save_path = config["save_path"]
-    np.random.seed(config["seed"])
     # Create a pickle file to store the splits
     pickle_file = os.path.join(save_path, "splits.pkl")
 

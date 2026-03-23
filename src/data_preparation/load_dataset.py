@@ -62,7 +62,7 @@ def load_images(data_path):
 
 """Loads the local dataset, divides it in train and test and
 splits it across clients"""
-def load_local(config):
+def load_local(config, seed):
     # return the labels already as integers and handle the real name label mapping
     # when finding the images in the corresponding labeled directories
     data, labels, label_mappings = load_images(config["data_path"])
@@ -73,12 +73,13 @@ def load_local(config):
                                   train_labels=train_labels, 
                                   test_data=test_data, 
                                   test_labels=test_labels, 
-                                  config=config)
+                                  config=config,
+                                  seed=seed)
 
     return splits, label_mappings
 
 """Loads the BloodMNIST dataset and splits across clients"""
-def load_bloodmnist(config):
+def load_bloodmnist(config, seed):
     train_set = BloodMNIST(split='train',root='./data/bloodmnist', download=True)
     test_set = BloodMNIST(split='test', root='./data/bloodmnist', download=True)
 
@@ -91,12 +92,13 @@ def load_bloodmnist(config):
                                   train_labels=train_set.labels,
                                   test_data=test_set.imgs,
                                   test_labels=test_set.labels,
-                                  config=config)
+                                  config=config,
+                                  seed=seed)
         
     return splits, label_mappings
 
 """Loads the MNIST dataset and splits across clients"""
-def load_mnist(config):
+def load_mnist(config,seed):
     train_set = datasets.MNIST(root='./data', train=True, download=True)
     test_set = datasets.MNIST(root='./data', train=False, download=True)
 
@@ -109,6 +111,7 @@ def load_mnist(config):
                                   train_labels=train_set.targets,
                                   test_data=np.array(test_set.data),
                                   test_labels=test_set.targets,
-                                  config=config)
+                                  config=config,
+                                  seed=seed)
         
     return splits, label_mappings

@@ -6,6 +6,7 @@ data/experimental/*
 data/cifar10/*
 data/bloodmnist/*
 data/MNIST/*
+data/distributions/*
 
 __pycache__/
 *.pt

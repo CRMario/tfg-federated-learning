@@ -113,6 +113,7 @@ def train(msg: Message, context: Context):
         model_record = ArrayRecord(MODEL.get(dataset,"local")().state_dict()) #random vector of parameters
         content = RecordDict({"arrays": model_record, "metrics": metric_record})
     else:
+        print(model.state_dict().keys())
         model_record = ArrayRecord(model.state_dict())
         content = RecordDict({"arrays": model_record, "metrics": metric_record})
 
