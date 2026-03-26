@@ -19,7 +19,7 @@ def clip_updates(updates, clipping):
 
     # clipping
     factor = min(1,clipping / total_norm)
-    return [update / factor for update in updates]
+    return [update * factor for update in updates]
 
 def sigma(epsilon, delta, clipping):
     c = np.sqrt(2 * np.log(1.25 / delta))
