@@ -4,10 +4,14 @@ import numpy as np
 def add_differential_privacy_to_updates(updates, clipping, epsilon, delta, device):
     #clip updates
     clipped_updates = clip_updates(updates, clipping)
+    print(clipped_updates)
     # compute sigma
     noise_std = sigma(epsilon, delta, clipping)
+    print(noise_std)
     # add noise to updates
-    return add_noise(clipped_updates, noise_std, device)
+    dp_updates = add_noise(clipped_updates, noise_std, device)
+    print(dp_updates)
+    return dp_updates
     
 def clip_updates(updates, clipping):
     total_norm = 0.0
