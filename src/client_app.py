@@ -128,9 +128,9 @@ def train(msg: Message, context: Context):
 
         dp_updates = add_differential_privacy_to_updates(
             updates=trainable_values,
-            clipping=msg.content["config"]["clipping"],
-            epsilon=msg.content["config"]["epsilon"],
-            delta=msg.content["config"]["delta"],
+            clipping=context.run_config["clipping"],
+            epsilon=context.run_config["epsilon"],
+            delta=context.run_config["delta"],
             device=device
         )
 
