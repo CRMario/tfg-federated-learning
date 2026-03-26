@@ -10,11 +10,15 @@ from src.task import test as test_fn
 from src.task import train_fedavg as train_fn_avg
 from src.task import train_scaffold as train_fn_scaffold
 from src.task import train_fedprox as train_fn_prox
+from src.dp_utils import add_differential_privacy_to_updates
 from utils.config import load_config
 from src.model import MODEL, CNN_Local
 
 TRAIN_FN = {
     "fedavg": lambda extra, common: train_fn_avg(
+        **common
+    ),
+    "fedavg-dp": lambda extra, common: train_fn_avg(
         **common
     ),
     "fedavg_precision_based": lambda extra, common: train_fn_avg(
@@ -54,7 +58,7 @@ def train(msg: Message, context: Context):
 
     # Load the CNN
     model = MODEL.get(dataset,CNN_Local)()
-    # Receive the global aggregated weights 
+    # Receive the global aggregated weights
     model.load_state_dict(msg.content["arrays"].to_torch_state_dict())
     # Move to gpu if possible
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -112,8 +116,38 @@ def train(msg: Message, context: Context):
         print("The malicious actor has been chosen for training")
         model_record = ArrayRecord(MODEL.get(dataset,"local")().state_dict()) #random vector of parameters
         content = RecordDict({"arrays": model_record, "metrics": metric_record})
-    else:
-        print(model.state_dict().keys())
+    elif strat == "fedavg-dp":
+        torch.manual_seed(config["seed"]) # for gaussian noise 
+        # In the case of differential privacy we first calculate the updates (difference between the global
+        # model and the model after being trained) and then return global_weights + noisy_updates
+        global_weights = msg.content["arrays"].to_torch_state_dict()
+        local_weights = model.state_dict()
+        updates = {key: local_weights[key] - global_weights[key] for key in global_weights.keys()}
+        trainable_keys = [key for key in updates.keys() if 'weight' in key or 'bias' in key]
+        trainable_values = [updates[tkey] for tkey in trainable_keys]
+
+        dp_updates = add_differential_privacy_to_updates(
+            updates=trainable_values,
+            clipping=config["clipping"],
+            epsilon=config["epsilon"],
+            delta=config["delta"],
+            device=device
+        )
+
+        weights_with_noise = {}
+        dp_updates_map = dict(zip(trainable_keys, dp_updates))
+        for key in updates.keys():
+            if key in dp_updates_map:
+                weights_with_noise[key] = global_weights[key] + dp_updates_map[key]
+            else:
+                # this is to prevent adding noise to layer params such as batchnorms running_mean
+                weights_with_noise[key] = local_weights[key]
+
+        model_record = ArrayRecord(weights_with_noise)
+        content = RecordDict({"arrays": model_record, "metrics": metric_record})
+    else: # FedAvg & FedProx
+        for key, value in model.state_dict().items():
+            print(f"Key: {key} | Shape: {str(value.shape)} | Count: {value.numel()} | Type: {value.dtype}")
         model_record = ArrayRecord(model.state_dict())
         content = RecordDict({"arrays": model_record, "metrics": metric_record})
 

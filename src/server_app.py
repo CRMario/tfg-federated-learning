@@ -24,6 +24,10 @@ STRATEGY = {
         evaluate_metrics_aggr_fn=aggregate_metricrecords,
         **common
     ),
+    "fedavg-dp": lambda configuration, initial_params, common: FedAvg(
+        evaluate_metrics_aggr_fn=aggregate_metricrecords,
+        **common
+    ),
     "fedavg_precision_based": lambda configuration, initial_params, common: PrecisionWeightedFedAvg(
         evaluate_metrics_aggr_fn=aggregate_metricrecords,
         **common
