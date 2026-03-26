@@ -18,7 +18,7 @@ def clip_updates(updates, clipping):
     total_norm = torch.sqrt(total_norm)
 
     # clipping
-    factor = max(1,total_norm / clipping)
+    factor = min(1,clipping / total_norm)
     return [update / factor for update in updates]
 
 def sigma(epsilon, delta, clipping):
