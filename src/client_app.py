@@ -120,7 +120,7 @@ def train(msg: Message, context: Context):
         torch.manual_seed(config["seed"]) # for gaussian noise 
         # In the case of differential privacy we first calculate the updates (difference between the global
         # model and the model after being trained) and then return global_weights + noisy_updates
-        global_weights = msg.content["arrays"].to_torch_state_dict()
+        global_weights = {k: v.to(device) for k,v in msg.content["arrays"].to_torch_state_dict().items()}
         local_weights = model.state_dict()
         updates = {key: local_weights[key] - global_weights[key] for key in global_weights.keys()}
         trainable_keys = [key for key in updates.keys() if 'weight' in key or 'bias' in key]
