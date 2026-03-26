@@ -6,5 +6,5 @@ local-epochs = 10
 learning-rate = 0.001
 batch-size = 64
 clipping = 0.1
-epsilon = 10.0
+epsilon = 5.0
 delta = 1e-5
