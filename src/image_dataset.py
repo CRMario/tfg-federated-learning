@@ -82,8 +82,24 @@ class ImageDatasetMNIST(ImageDataset):
 
         return {"img": image, "label": torch.tensor(label, dtype=torch.long)}
     
+"""Image dataset for CIFAR dataset."""
+class ImageDatasetCIFAR(ImageDataset):
+
+    transforms = Compose([
+        ToTensor(),
+    ])
+
+    def __getitem__(self, id):
+        image = Image.fromarray(self.images[id]) # CIFAR uses numpy arrays
+        image = self._apply_transforms(image)
+
+        label = self._get_label_id(self.labels[id])
+
+        return {"img": image, "label": torch.tensor(label, dtype=torch.long)}
+    
 IMAGE_DATASET = {
     "local": ImageDatasetLocal,
     "bloodmnist": ImageDatasetBloodMNIST,
     "mnist": ImageDatasetMNIST,
+    "cifar": ImageDatasetCIFAR
 }
