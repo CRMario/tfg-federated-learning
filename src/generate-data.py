@@ -11,7 +11,6 @@ LOAD_DATASET = {
     "local": load_local,
     "bloodmnist": load_bloodmnist,
     "mnist": load_mnist,
-    "cifar": load_cifar,
 }
 
 def main():
