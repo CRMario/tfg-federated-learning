@@ -16,6 +16,7 @@ from src.strategies.attacks.malicious_client import MaliciousActorIIDDetector
 from src.strategies.fedavg_precision import PrecisionWeightedFedAvg
 from utils.utils import aggregate_metricrecords
 from utils.config import load_config
+from src.task import global_evaluate
 
 from src.model import MODEL, CNN_Local
 
