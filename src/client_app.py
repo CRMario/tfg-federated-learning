@@ -50,6 +50,10 @@ def train(msg: Message, context: Context):
     config = load_config("./data/processed/config.json")
     dataset = config["dataset"]
 
+    seed = config.get("seed", 42)
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+
     strat = context.run_config.get("strategy","fedavg")
 
     if strat == "scaffold" and "c_local" not in context.state.array_records:
@@ -167,6 +171,10 @@ def evaluate(msg: Message, context: Context):
     config = load_config("./data/processed/config.json")
     mappings = load_config("./data/processed/label_mappings.json")
     dataset = config["dataset"]
+
+    seed = config.get("seed", 42)
+    torch.manual_seed(seed)
+    np.random.seed(seed)
 
     strat = context.run_config.get("strategy","fedavg")
     # Load the model

@@ -75,6 +75,9 @@ def main(grid: Grid, context: Context) -> None:
 
         partition_config = load_config("./data/processed/config.json")
 
+        seed = partition_config["seed"]
+        torch.manual_seed(seed)
+
         mlflow.log_params(config)
         mlflow.log_params(partition_config)
         mlflow.log_param("strategy", strat)
