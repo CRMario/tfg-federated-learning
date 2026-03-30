@@ -120,6 +120,10 @@ def main(grid: Grid, context: Context) -> None:
         for round, metrics in result.train_metrics_clientapp.items():
             for metric, value in metrics.items():
                 mlflow.log_metric(f"train_{metric}", value, step=round)
+        if result.metrics_centralized:
+            for metric_name, values in result.metrics_centralized.items():
+                for round_idx, value in values:
+                    mlflow.log_metric(f"global_{metric_name}", value, step=round_idx)
     
         plot_results(result)
         mlflow.log_artifact("outputs/global_metrics.png")
@@ -138,7 +142,7 @@ def plot_results(result):
     f1_per_label = {} #example: {'lung cancer': [0.8, 0.9, 0.91]...}
     precision_per_label = {}
     recall_per_label = {}
-    eval_accuracy, eval_loss, train_accuracy, train_loss = [], [], [], []
+    eval_accuracy, eval_loss, train_accuracy, train_loss, global_accuracy = [], [], [], [], []
 
     for round in rounds:
         evaluation_metrics = result.evaluate_metrics_clientapp[round]
