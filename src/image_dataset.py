@@ -70,8 +70,7 @@ class ImageDatasetBloodMNIST(ImageDataset):
 class ImageDatasetMNIST(ImageDataset):
 
     transforms = Compose([
-        ToTensor(), 
-        Normalize((0.1307,), (0.3081,))
+        ToTensor(),
     ])
 
     def __getitem__(self, id):
