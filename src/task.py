@@ -264,6 +264,7 @@ def aggregate_malicious_vector(model):
 def global_evaluate(server_round: int, arrays: ArrayRecord):
 
     config = load_config("./data/processed/config.json")
+    mappings = load_config("./data/processed/label_mappings.json")
     dataset = config["dataset"]
 
     model = MODEL.get(dataset,CNN_Local)()
@@ -273,6 +274,9 @@ def global_evaluate(server_round: int, arrays: ArrayRecord):
 
     test_dataloader = load_centralised_dataset()
 
-    test_loss, test_acc = test(model, test_dataloader, device)
+    test_loss, test_acc = test(model, 
+                               test_dataloader, 
+                               [int(label) for label in mappings["id_to_label"].keys()],
+                               device)
 
     return MetricRecord({"accuracy": test_acc, "loss": test_loss})
