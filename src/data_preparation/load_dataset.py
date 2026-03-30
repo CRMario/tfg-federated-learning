@@ -115,22 +115,3 @@ def load_mnist(config,seed):
                                   seed=seed)
         
     return splits, label_mappings
-
-"""Loads the CIFAR-10 dataset and splits across clients"""
-def load_cifar(config,seed):
-    train_set = datasets.CIFAR10(root='./data', train=True, download=True)
-    test_set = datasets.CIFAR10(root='./data', train=False, download=True)
-
-    label_mappings = {
-        "label_to_id": {label: i for i, label in enumerate(train_set.classes)},
-        "id_to_label": {i: label for i, label in enumerate(train_set.classes)}
-    }
-
-    splits = split_data_by_client(train_data=np.array(train_set.data),
-                                  train_labels=train_set.targets,
-                                  test_data=np.array(test_set.data),
-                                  test_labels=test_set.targets,
-                                  config=config,
-                                  seed=seed)
-        
-    return splits, label_mappings

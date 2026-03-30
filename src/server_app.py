@@ -110,6 +110,7 @@ def main(grid: Grid, context: Context) -> None:
             initial_arrays=arrays,
             train_config=ConfigRecord({"lr": lr}),
             num_rounds=num_rounds,
+            evaluate_fn=global_evaluate
         )
 
         for round, metrics in result.evaluate_metrics_clientapp.items():

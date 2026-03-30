@@ -99,41 +99,9 @@ class CNN_MNIST(nn.Module):
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
         return x
-
-"""CNN that will be used for CIFAR:"""
-class CNN_CIFAR(nn.Module):
-
-    def __init__(self, input_channels=3, num_classes=10):
-        super(CNN_CIFAR, self).__init__()
-        
-        # 5x5 conv, 6 output channels
-        self.conv1 = nn.Conv2d(in_channels=input_channels, out_channels=6, kernel_size=5)
-        
-        # 5x5 conv, 16 output channels
-        self.conv2 = nn.Conv2d(in_channels=6, out_channels=16, kernel_size=5)
-
-        # 2x2 max pooling
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-        
-        self.fc1 = nn.Linear(16 * 4 * 4, 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, num_classes)
-
-    def forward(self, x):
-
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
-        
-        x = x.view(-1, 16 * 4 * 4)
-        
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
     
 MODEL = {
     "local": CNN_Local,
     "bloodmnist": CNN_BloodMNIST,
     "mnist": CNN_MNIST,
-    "cifar": CNN_CIFAR,
 }

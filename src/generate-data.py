@@ -21,7 +21,7 @@ def main():
     parser.add_argument("--n_clients",type=int,required=True,help="Number of clients in the federated learning settings")
 
     # Choose the dataset
-    parser.add_argument("--dataset", type=str, choices=["local", "bloodmnist","mnist","cifar"], default="local",
+    parser.add_argument("--dataset", type=str, choices=["local", "bloodmnist","mnist"], default="local",
                         help="Choose 'local' for your local folder-based images, or 'bloodmnist' or 'mnist' for an automated download. In " \
                         "case of bloodmnist & mnist you can specify the subset of the data to be used.")
 

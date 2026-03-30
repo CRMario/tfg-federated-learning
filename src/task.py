@@ -3,11 +3,13 @@ import copy
 import torch
 import gc
 import math
-from flwr.app import Array, ArrayRecord
+import numpy as np
+from flwr.app import Array, ArrayRecord, MetricRecord
 from src.image_dataset import IMAGE_DATASET, ImageDatasetLocal
 from torch.utils.data import DataLoader
 from sklearn.metrics import confusion_matrix, precision_score
 from utils.config import load_config
+from src.model import MODEL, CNN_Local
 
 # Cache the data
 all_client_data = None
@@ -44,6 +46,34 @@ def load_data(partition_id: int, batch_size: int):
     gc.collect()
 
     return trainloader, testloader
+
+def load_centralised_dataset():
+    global all_client_data
+    
+    if all_client_data is None:
+        with open("./data/processed/splits.pkl", "rb") as f:
+            all_client_data = pickle.load(f)
+    
+    all_test_x = []
+    all_test_y = []
+
+    for client_name in all_client_data:
+        all_test_x.append(all_client_data[client_name]["test"]["x"])
+        all_test_y.append(all_client_data[client_name]["test"]["y"])
+
+    test_imgs = np.concatenate(all_test_x, axis=0)
+    test_labels = np.concatenate(all_test_y, axis=0)
+
+    dataset = load_config("./data/processed/config.json")["dataset"]
+    image_dataset_builder = IMAGE_DATASET.get(dataset,ImageDatasetLocal)
+    
+    test_ds = image_dataset_builder(test_imgs, test_labels)
+
+    testloader = DataLoader(test_ds, shuffle=False)
+
+    gc.collect()
+
+    return testloader
 
 def train_fedavg(model, trainloader, epochs, lr, device, **kwargs):
     model.to(device)
@@ -230,3 +260,19 @@ def train_fedprox(proximal_mu, inexact_threshold, model, trainloader, epochs, lr
 def aggregate_malicious_vector(model):
     # For now unimplemented
     pass
+
+def global_evaluate(server_round: int, arrays: ArrayRecord):
+
+    config = load_config("./data/processed/config.json")
+    dataset = config["dataset"]
+
+    model = MODEL.get(dataset,CNN_Local)()
+    model.load_state_dict(arrays.to_torch_state_dict())
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    model.to(device)
+
+    test_dataloader = load_centralised_dataset()
+
+    test_loss, test_acc = test(model, test_dataloader, device)
+
+    return MetricRecord({"accuracy": test_acc, "loss": test_loss})
