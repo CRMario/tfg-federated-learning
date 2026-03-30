@@ -275,8 +275,9 @@ def global_evaluate(server_round: int, arrays: ArrayRecord):
     test_dataloader = load_centralised_dataset()
 
     test_loss, test_acc = test(model, 
-                               test_dataloader, 
+                               test_dataloader,
+                               device,
                                [int(label) for label in mappings["id_to_label"].keys()],
-                               device)
+                               )
 
     return MetricRecord({"accuracy": test_acc, "loss": test_loss})
