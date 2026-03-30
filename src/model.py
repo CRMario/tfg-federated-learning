@@ -103,7 +103,7 @@ class CNN_MNIST(nn.Module):
 """CNN that will be used for CIFAR:"""
 class CNN_CIFAR(nn.Module):
 
-    def __init__(self, input_channels=1, num_classes=10):
+    def __init__(self, input_channels=3, num_classes=10):
         super(CNN_CIFAR, self).__init__()
         
         # 5x5 conv, 6 output channels
