@@ -131,6 +131,7 @@ def train(msg: Message, context: Context):
             clipping=context.run_config["clipping"],
             epsilon=context.run_config["epsilon"],
             delta=context.run_config["delta"],
+            n_samples=len(trainloader.dataset),
             device=device
         )
 
