@@ -79,7 +79,7 @@ def train_fedavg(model, trainloader, epochs, lr, device, **kwargs):
     model.to(device)
     # Use SGD with a CrossEntropyLoss function
     criterion = torch.nn.CrossEntropyLoss().to(device)
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=1e-5)
     model.train()
     running_loss = 0.0
     correct = 0
@@ -145,7 +145,7 @@ def train_scaffold(global_c, local_c, model, trainloader, epochs, lr, device, **
     model.to(device)
     # Use SGD with a CrossEntropyLoss function
     criterion = torch.nn.CrossEntropyLoss().to(device)
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0)
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=1e-5)
     model.train()
     running_loss = 0.0
     correct = 0
@@ -201,7 +201,7 @@ def train_fedprox(proximal_mu, inexact_threshold, model, trainloader, epochs, lr
     model.to(device)
     # Use SGD with a CrossEntropyLoss function
     criterion = torch.nn.CrossEntropyLoss().to(device)
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=1e-5)
 
     # Calculate the inexact condition
     model.train()
