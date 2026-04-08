@@ -1,4 +1,4 @@
-strategy = "fedprox"
+strategy = "fedprox-stragglers"
 num-server-rounds = 100
 fraction-train = 1.0
 fraction-evaluate = 1.0
