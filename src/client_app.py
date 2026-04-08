@@ -10,6 +10,7 @@ from src.task import test as test_fn
 from src.task import train_fedavg as train_fn_avg
 from src.task import train_scaffold as train_fn_scaffold
 from src.task import train_fedprox as train_fn_prox
+from src.task import train_fedprox_stragglers as train_fn_prox_str
 from src.dp_utils import add_differential_privacy_to_updates
 from utils.config import load_config
 from src.model import MODEL, CNN_Local
@@ -38,7 +39,10 @@ TRAIN_FN = {
     ),
     "malicious_server_metric_based": lambda extra, common: train_fn_avg(
         **common
-    )
+    ),
+    "fedprox-stragglers": lambda extra, common: train_fn_prox_str(
+        **common
+    ),
 }
 
 # Initialize the client application
@@ -74,13 +78,19 @@ def train(msg: Message, context: Context):
 
     trainloader, _ = load_data(partition_id, batch_size)
 
+    # Experiment with half of the nodes being stragglers
+    if strat == "fedprox-stragglers":
+        inexact_threshold = context.run_config.get("inexact-threshold",0) if int(partition_id) % 2 == 0 else 1
+    else:
+        inexact_threshold = context.run_config.get("inexact-threshold",0)
+
     extra = {
         # SCAFFOLD:
         "global_c": msg.content.get("global-control",0),
         "local_c": context.state.array_records.get("c_local",0),
         # FedProx:
         "proximal_mu": msg.content["config"].get("proximal-mu",0),
-        "inexact_threshold": context.run_config.get("inexact-threshold",0)
+        "inexact_threshold": inexact_threshold
     }
 
     common_parameters = {

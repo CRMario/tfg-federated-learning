@@ -281,3 +281,62 @@ def global_evaluate(server_round: int, arrays: ArrayRecord):
                                )
 
     return MetricRecord({"accuracy": test_acc, "loss": test_loss})
+
+def train_fedprox_stragglers(proximal_mu, inexact_threshold, model, trainloader, epochs, lr, device, **kwargs):
+    global_model_params = [parameter.clone() for parameter in model.parameters()]
+    model.to(device)
+    # Use SGD with a CrossEntropyLoss function
+    criterion = torch.nn.CrossEntropyLoss().to(device)
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=1e-5)
+
+    # Calculate the inexact condition
+    model.train()
+    first_batch = next(iter(trainloader))
+    optimizer.zero_grad()
+    init_loss = criterion(model(first_batch["img"].to(device)), first_batch["label"].to(device))
+    init_loss.backward()
+
+    # Get the initial norm
+    with torch.no_grad():
+        initial_grad_norm = torch.cat([p.grad.flatten() for p in model.parameters()]).norm(2)
+
+    optimizer.zero_grad()
+
+    model.train()
+    running_loss = 0.0
+    correct = 0
+    total = 0
+    current_epoch = 1
+    for _ in range(epochs):
+        for batch in trainloader:
+            images = batch["img"].to(device)
+            labels = batch["label"].to(device)
+            optimizer.zero_grad()
+            out = model(images)
+            loss = criterion(out, labels)
+            diff = 0.0
+            for local_weight, global_weight in zip(model.parameters(), global_model_params):
+                diff += (local_weight - global_weight).norm(2)**2
+            proximal_term = (proximal_mu / 2) * diff
+            modified_loss = loss + proximal_term
+
+            modified_loss.backward()
+            optimizer.step()
+            running_loss += loss.item()
+
+            _, predicted = torch.max(out,dim=1)
+            correct += (predicted == labels).sum().item()
+            total += len(labels)
+        
+        with torch.no_grad():
+            current_grad_norm = torch.cat([p.grad.flatten() for p in model.parameters()]).norm(2)
+
+        if current_grad_norm <= initial_grad_norm * inexact_threshold:
+            avg_trainloss = running_loss / (current_epoch * len(trainloader))
+            training_accuracy = correct / total
+            return avg_trainloss, training_accuracy, {}, {}, {}
+        current_epoch += 1
+        
+    avg_trainloss = running_loss / (epochs * len(trainloader))
+    training_accuracy = correct / total
+    return avg_trainloss, training_accuracy, {}, {}, {}
