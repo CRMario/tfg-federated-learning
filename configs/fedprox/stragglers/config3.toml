@@ -1,0 +1,9 @@
+strategy = "fedprox"
+num-server-rounds = 100
+fraction-train = 1.0
+fraction-evaluate = 1.0
+local-epochs = 10
+learning-rate = 0.01
+batch-size = 128
+proximal-mu = 0.01
+inexact-threshold = 0.5
