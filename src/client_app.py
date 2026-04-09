@@ -41,7 +41,7 @@ TRAIN_FN = {
         **common
     ),
     "fedprox-stragglers": lambda extra, common: train_fn_prox_str(
-        **common
+        **extra, **common
     ),
 }
 
