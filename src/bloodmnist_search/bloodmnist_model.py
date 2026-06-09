@@ -67,6 +67,7 @@ def main():
         # CNN parameters
         'module__n_conv_layers': [2, 3],
         'module__starting_filters': [16, 32],
+        'module__n_fc_layers': [1,2],
         # Other parameters
         'batch_size': [64, 128]
     }

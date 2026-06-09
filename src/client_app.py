@@ -107,7 +107,7 @@ def train(msg: Message, context: Context):
     train_loss, train_acc, w_diff, c_diff, new_c = train_fn(extra=extra,common=common_parameters)
     end_time = time.perf_counter()
     train_duration = end_time - start_time
-    print(train_duration)
+    #print(train_duration)
 
     metrics = {
         "train_loss": train_loss,
@@ -161,8 +161,9 @@ def train(msg: Message, context: Context):
         model_record = ArrayRecord(weights_with_noise)
         content = RecordDict({"arrays": model_record, "metrics": metric_record})
     else: # FedAvg & FedProx
-        for key, value in model.state_dict().items():
-            print(f"Key: {key} | Shape: {str(value.shape)} | Count: {value.numel()} | Type: {value.dtype}")
+        # print weight vector sizes
+        #for key, value in model.state_dict().items():
+            #print(f"Key: {key} | Shape: {str(value.shape)} | Count: {value.numel()} | Type: {value.dtype}")
         model_record = ArrayRecord(model.state_dict())
         content = RecordDict({"arrays": model_record, "metrics": metric_record})
 
