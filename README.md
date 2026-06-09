@@ -67,3 +67,8 @@ Notice that `local` refers to the `[superlink.local]` configuration mentioned be
 ### Partition the data
 
 ### Run the simulation
+
+---
+**Author**: Mario Cuesta Rivavelarde
+**Institution**: Universidad de Cantabria (Facultad de Ciencias)
+**Date**: June 2026
