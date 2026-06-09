@@ -1,16 +1,9 @@
-import io
-import time
 from logging import INFO
-from pathlib import Path
-from typing import Callable, Iterable, Optional
+from typing import Iterable
 
-import torch
-import wandb
-from flwr.app import ArrayRecord, ConfigRecord, Message, MetricRecord
-from flwr.common import log, logger
-from flwr.serverapp import Grid
-from flwr.serverapp.strategy import FedAvg, Result
-from flwr.serverapp.strategy.strategy_utils import log_strategy_start_info
+from flwr.app import ArrayRecord, Message, MetricRecord
+from flwr.common import log
+from flwr.serverapp.strategy import FedAvg
 
 
 # Unimplemented

@@ -3,17 +3,13 @@ from sklearn.metrics import classification_report, accuracy_score, confusion_mat
 from skorch import NeuralNetClassifier
 from skorch.helper import SliceDataset
 from src.data_preparation.load_dataset import load_images
-from src.data_preparation.split_data import split_data_by_client
 from src.config.constants import *
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import numpy as np
 from PIL import Image
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import Dataset
 from torchvision.transforms import Compose, Normalize, ToTensor, Resize
 from random import shuffle
-from collections import Counter
 
 class ImageDataset(Dataset):
 

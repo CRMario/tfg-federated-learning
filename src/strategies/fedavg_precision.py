@@ -1,16 +1,11 @@
 from flwr.serverapp.strategy import FedAvg
 from collections.abc import Iterable
-from flwr.serverapp.strategy.strategy_utils import sample_nodes, validate_message_reply_consistency, aggregate_arrayrecords
+from flwr.serverapp.strategy.strategy_utils import aggregate_arrayrecords
 from logging import INFO
 from flwr.app import MessageType
 from flwr.common import (
     Message,
-    Array,
-    ArrayRecord,
     ConfigRecord,
-    MetricRecord,
-    NDArray,
-    RecordDict,
     log,
 )
 from typing import cast

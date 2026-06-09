@@ -1,18 +1,11 @@
-import io
-import time
 from typing import cast
 from logging import INFO
-from pathlib import Path
-from typing import Callable, Iterable, Optional
+from typing import Iterable
 
-import torch
-import wandb
-from flwr.app import ArrayRecord, ConfigRecord, Message, MetricRecord
+from flwr.app import ArrayRecord, Message, MetricRecord
 import numpy as np
-from flwr.common import log, logger, NDArray, Array
-from flwr.serverapp import Grid
-from flwr.serverapp.strategy import FedAvg, Result
-from flwr.serverapp.strategy.strategy_utils import log_strategy_start_info
+from flwr.common import log, NDArray, Array
+from flwr.serverapp.strategy import FedAvg
 
 
 class MaliciousActorIIDDetector(FedAvg):

@@ -2,7 +2,6 @@ import argparse
 import json
 import os
 import pickle
-import numpy as np
 from utils.config import *
 from src.data_preparation.load_dataset import load_local, load_bloodmnist, load_mnist
 from src.config.constants import *

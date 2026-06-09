@@ -6,13 +6,10 @@ from flwr.common import (
     Message,
     Array,
     ArrayRecord,
-    ConfigRecord,
-    MetricRecord,
     NDArray,
     RecordDict,
     log,
 )
-from typing import cast
 import numpy as np
 
 class SCAFFOLD(FedAvg):

@@ -1,6 +1,5 @@
 import torch
 import matplotlib
-import json
 matplotlib.use('Agg')
 import matplotlib.pyplot as ppt
 import os
