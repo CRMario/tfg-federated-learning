@@ -2,7 +2,6 @@ from flwr.serverapp.strategy import FedAvg
 from collections.abc import Iterable
 from flwr.serverapp.strategy.strategy_utils import aggregate_arrayrecords
 from logging import INFO
-from flwr.app import MessageType
 from flwr.common import (
     Message,
     ConfigRecord,
