@@ -1,2 +1,0 @@
-# FedAvg: run as flwr run .
-# SCAFFOLD: run as flwr run . local-simulation --run-config scaffold.toml
