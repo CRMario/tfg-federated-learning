@@ -64,9 +64,104 @@ Notice that `local` refers to the `[superlink.local]` configuration mentioned be
 
 ## Run an experiment
 
-### Partition the data
+To run an experiment, you must first split the dataset across clients and then run the simulation.
+
+### Split the data
+
+In order to split the dataset across clients, you must run:
+```bash
+python -m src.split_dataset --n_clients <N> [OPTIONS]
+```
+
+**Arguments**
+
+Required
+ 
+| Argument | Type | Description |
+|---|---|---|
+| `--n_clients` | `int` | Number of clients in the federated learning setup |
+
+Dataset
+
+| Argument | Type | Default | Description |
+|---|---|---|---|
+| `--dataset` | `str` | `local` | Dataset source: `local`, `bloodmnist`, or `mnist` |
+| `--subset` | `float` | `1.0` | Proportion of the dataset to use (ex. `0.5` = 50%) |
+
+Data splitting
+
+| Argument | Type | Default | Description |
+|---|---|---|---|
+| `--train` | `float` | `0.8` | Proportion of data used for training (ex. `0.8` = 80% train, 20% test) |
+| `--split_method` | `str` | `orig-dist` | How data is split across clients. Options: `orig-dist`, `dirichlet`, `qbli` |
+| `--alpha` | `float` | `None` | Heterogeneity parameter for `dirichlet` splitting. **Required** when `--split_method dirichlet` |
+| `--C` | `int` | `None` | Number of labels per client for `qbli` splitting. **Required** when `--split_method qbli` |
+
+Seed
+
+| Argument | Type | Default | Description |
+|---|---|---|---|
+| `--seed` | `int` | `42` | Random seed for reproducibility |
+
+
+Examples
+
+**Local dataset, 5 clients, stratified split:**
+```bash
+python -m src.split_dataset --n_clients 5 --dataset local --split_method orig-dist
+```
+ 
+**BloodMNIST, 10 clients, Dirichlet split (α = 0.5):**
+```bash
+python -m src.split_dataset --n_clients 10 --dataset bloodmnist --split_method dirichlet --alpha 0.5
+```
+ 
+**MNIST, 8 clients, using 50% of the data, label-imbalance with 3 labels per client:**
+```bash
+python -m src.split_dataset --n_clients 8 --dataset mnist --subset 0.5 --split_method qbli --C 3
+```
+
+In order to use a dataset with locally saved images, your data must be organized so that each class has its own folder under `data/raw/`, with the corresponding images inside:
+
+```
+data/raw/
+├── class_1/
+│   ├── image1.png
+│   └── image2.png
+├── class_2/
+│   ├── image1.png
+│   └── image2.png
+└── class_N/
+    └── ...
+```
+
+For example:
+
+```
+data/raw/
+├── lung-opacity/
+    ├── img1.png
+    └── img2.png
+├── normal/
+    ├── img1.png
+    └── ...
+└── viral-pneumonia/
+    └── img1.png
+```
+
 
 ### Run the simulation
+
+```bash
+flwr run . local --run-config <config_file>
+```
+
+Example:
+
+```bash
+flwr run . local --run-config configs/my_experiment.toml
+```
+
 
 ---
 **Author**: Mario Cuesta Rivavelarde
