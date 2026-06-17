@@ -152,6 +152,12 @@ data/raw/
 
 ### Run the simulation
 
+Start the MLflow server to log results:
+```bash
+mlflow server
+```
+
+Start the simulation:
 ```bash
 flwr run . local --run-config <config_file>
 ```
