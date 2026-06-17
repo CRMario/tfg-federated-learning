@@ -15,7 +15,7 @@ dependencies = [
     "numpy==2.4.2",
     "medmnist==3.0.2",
     "skorch==1.3.1",
-    "mlflow==3.9.0"
+    "mlflow>=3.9.0"
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -31,7 +31,7 @@ clientapp = "src.client_app:app"
 [tool.flwr.app.config]
 strategy = "fedavg"
 num-server-rounds = 100
-fraction-train = 0.75 #change back to 0.75
+fraction-train = 0.75
 fraction-evaluate = 1.0
 local-epochs = 10
 learning-rate = 0.01
